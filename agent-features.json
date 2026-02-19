@@ -87,7 +87,7 @@
             "Step 3: 验证食谱内容包含早餐、午餐、晚餐建议",
             "Step 4: 验证食谱内容尊重脂肪<30g的约束"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F08",
@@ -99,7 +99,7 @@
             "Step 3: 验证返回 summary 字段包含最近饮食信息",
             "Step 4: 验证摘要是可读的中文格式"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F09",
