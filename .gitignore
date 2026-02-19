@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.local
+!.env.example
+
+# Data (generated at runtime)
+backend/data/
+*.db
+
+# ChromaDB
+backend/data/chroma_db/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+.next/
+out/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
