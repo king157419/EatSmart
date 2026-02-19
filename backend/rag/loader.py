@@ -5,7 +5,7 @@ RAG 知识库加载器 - 将 Markdown 知识库文件向量化并存储到 Chrom
 import os
 import glob
 from langchain_community.document_loaders import TextLoader
-from langchain.text_splitter import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
+from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 

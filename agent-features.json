@@ -1,0 +1,210 @@
+[
+    {
+        "id": "F01",
+        "category": "functional",
+        "description": "后端 FastAPI 服务可以成功启动，无 import 错误，根路由返回正确 JSON",
+        "steps": [
+            "Step 1: 创建 backend/config.py 和 backend/.env，写入 DeepSeek API Key",
+            "Step 2: 安装 Python 依赖 (pip install -r requirements.txt)",
+            "Step 3: 运行 uvicorn main:app --port 8000",
+            "Step 4: 验证无 import 错误，服务器成功启动",
+            "Step 5: curl GET http://localhost:8000/ 返回 {\"message\": \"EatSmart 健康管家 API\", \"status\": \"running\"}"
+        ],
+        "passes": true
+    },
+    {
+        "id": "F02",
+        "category": "functional",
+        "description": "SQLite 数据库初始化成功，所有表创建完成，默认营养目标已插入",
+        "steps": [
+            "Step 1: 启动后端服务",
+            "Step 2: 验证 backend/data/memory.db 文件已创建",
+            "Step 3: curl GET /api/nutrition/today 返回包含 targets 的 JSON",
+            "Step 4: 验证 targets 包含 calories=1800, fat=30, carbs=200, protein=60, fiber=25"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F03",
+        "category": "functional",
+        "description": "RAG 知识库向量数据库构建成功，知识检索可返回相关片段",
+        "steps": [
+            "Step 1: 运行 python -m rag.loader 构建向量库",
+            "Step 2: 验证 backend/data/chroma_db/ 目录已创建",
+            "Step 3: 验证无报错，输出显示加载了多少文档片段",
+            "Step 4: 通过 chat API 发送包含'胰腺炎能吃什么'的问题，验证返回的 sources 非空"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F04",
+        "category": "functional",
+        "description": "DeepSeek API 集成正常，主对话能返回有意义的中文回复",
+        "steps": [
+            "Step 1: 确认 .env 中 DEEPSEEK_API_KEY 已正确设置",
+            "Step 2: curl POST /api/chat -d {\"message\": \"你好\"} ",
+            "Step 3: 验证返回包含 reply 字段，且内容是有意义的中文回复",
+            "Step 4: 验证返回包含 sources 数组",
+            "Step 5: 验证返回包含 has_recording 布尔值"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F05",
+        "category": "functional",
+        "description": "记录 Agent 的 Function Calling 能正确识别饮食描述并存入数据库",
+        "steps": [
+            "Step 1: curl POST /api/chat -d {\"message\": \"我中午吃了一碗白米饭和一个水煮蛋\"}",
+            "Step 2: 验证返回 has_recording=true",
+            "Step 3: 验证 records 数组包含 record_meal 类型",
+            "Step 4: curl GET /api/meals/today 验证有相应记录",
+            "Step 5: curl GET /api/nutrition/today 验证 total_calories > 0",
+            "Step 6: 验证营养数据（白米饭应由本地数据库查到，source=local_db）"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F06",
+        "category": "functional",
+        "description": "营养进度条 API 返回正确的摘要、目标、百分比和警告信息",
+        "steps": [
+            "Step 1: 先记录一些饮食数据（通过 /api/chat）",
+            "Step 2: curl GET /api/nutrition/today",
+            "Step 3: 验证返回包含 total_calories, total_fat, total_carbs, total_protein, total_fiber",
+            "Step 4: 验证返回包含 targets 对象（calories, fat, carbs, protein, fiber）",
+            "Step 5: 验证返回包含 percentages 对象，比例计算正确",
+            "Step 6: 如果 fat 超过 30g，验证 warnings 数组包含脂肪超标警告"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F07",
+        "category": "functional",
+        "description": "食谱推荐 API 返回结构化的三餐建议",
+        "steps": [
+            "Step 1: curl POST /api/recipe -d {\"preferences\": \"\"}",
+            "Step 2: 验证返回包含 recipe 字段",
+            "Step 3: 验证食谱内容包含早餐、午餐、晚餐建议",
+            "Step 4: 验证食谱内容尊重脂肪<30g的约束"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F08",
+        "category": "functional",
+        "description": "记忆摘要 API 返回最近健康数据的文本摘要",
+        "steps": [
+            "Step 1: 先通过 /api/chat 记录一些饮食和运动数据",
+            "Step 2: curl GET /api/memory/summary",
+            "Step 3: 验证返回 summary 字段包含最近饮食信息",
+            "Step 4: 验证摘要是可读的中文格式"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F09",
+        "category": "functional",
+        "description": "前端聊天界面能发送消息到后端，显示 AI 回复，且引用面板显示来源",
+        "steps": [
+            "Step 1: 前后端同时启动（后端 8000，前端 3000）",
+            "Step 2: 浏览器打开 localhost:3000",
+            "Step 3: 输入'我能不能吃红烧肉'，点击发送",
+            "Step 4: 验证 AI 回复出现在聊天窗口",
+            "Step 5: 验证回复旁有'查看参考来源'按钮",
+            "Step 6: 点击按钮，验证引用面板展开显示来源文件名和内容"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F10",
+        "category": "functional",
+        "description": "前端营养进度条面板实时显示今日营养摄入数据",
+        "steps": [
+            "Step 1: 确认后端和前端均已启动",
+            "Step 2: 浏览器打开 localhost:3000，查看右侧/底部面板",
+            "Step 3: 验证显示 5 个进度条（热量/脂肪/碳水/蛋白质/膳食纤维）",
+            "Step 4: 在聊天中记录一餐饮食",
+            "Step 5: 验证进度条数值更新（无需刷新页面）",
+            "Step 6: 如有警告，验证警告信息显示在进度条下方"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F11",
+        "category": "functional",
+        "description": "前端食谱推荐弹窗功能正常",
+        "steps": [
+            "Step 1: 浏览器打开 localhost:3000",
+            "Step 2: 点击 Header 中的'🍽️ 食谱'按钮",
+            "Step 3: 验证食谱弹窗显示",
+            "Step 4: 验证弹窗中显示 loading 动画，然后显示食谱内容",
+            "Step 5: 点击'换一套'按钮，验证重新生成",
+            "Step 6: 点击'好的'按钮或点击遮罩层，验证弹窗关闭"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F12",
+        "category": "functional",
+        "description": "前端快捷操作按钮功能正常",
+        "steps": [
+            "Step 1: 浏览器打开 localhost:3000（空白欢迎页）",
+            "Step 2: 验证显示 5 个快捷操作按钮",
+            "Step 3: 点击'📝 记录饮食'按钮",
+            "Step 4: 验证输入框自动填入预设文字",
+            "Step 5: 按 Enter 发送",
+            "Step 6: 验证 AI 回复且有'已记录到记忆库'标识"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F13",
+        "category": "functional",
+        "description": "运动/血糖/作息/用药记录通过 Function Calling 正确存入",
+        "steps": [
+            "Step 1: POST /api/chat 发送'今天散步了30分钟'",
+            "Step 2: 验证返回 record_exercise 记录",
+            "Step 3: POST /api/chat 发送'今天空腹血糖6.5'",
+            "Step 4: 验证返回 record_blood_sugar 记录",
+            "Step 5: POST /api/chat 发送'昨晚11点睡7点起'",
+            "Step 6: 验证返回 record_sleep 记录"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F14",
+        "category": "style",
+        "description": "前端整体视觉效果：渐变 Header、动画进度条、对话气泡样式",
+        "steps": [
+            "Step 1: 打开 localhost:3000",
+            "Step 2: 验证 Header 有绿色渐变背景",
+            "Step 3: 验证进度条有闪光动画效果",
+            "Step 4: 发送消息后验证气泡有淡入动画",
+            "Step 5: 验证用户气泡靠右绿色，AI 气泡靠左白色",
+            "Step 6: 验证移动端布局正确（max-width:480px）"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F15",
+        "category": "functional",
+        "description": "PWA manifest 正确加载，支持添加到手机主屏幕",
+        "steps": [
+            "Step 1: 打开 localhost:3000",
+            "Step 2: 检查 DevTools → Application → Manifest",
+            "Step 3: 验证 manifest.json 正确解析（name, icons, theme_color）",
+            "Step 4: 验证 display=standalone"
+        ],
+        "passes": false
+    },
+    {
+        "id": "F16",
+        "category": "functional",
+        "description": "Git 仓库完整，所有代码已推送到 GitHub",
+        "steps": [
+            "Step 1: git status 验证无未提交文件",
+            "Step 2: 访问 https://github.com/king157419/EatSmart 验证文件完整"
+        ],
+        "passes": true
+    }
+]
