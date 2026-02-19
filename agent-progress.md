@@ -36,3 +36,33 @@
 - passing: 1 (F16 Git推送)
 - failing: 15
 - 下一步应先从 F01（后端启动）开始
+
+---
+
+## Session 2 — 2026-02-19 后端验证（agent harness 模式）
+
+### 完成
+- 创建 `config.py`（集中配置管理）和 `.env`（DeepSeek API Key）
+- 安装 Python 依赖 (pip install -r requirements.txt)
+- 后端成功启动在 port 8001（port 8000 被 MLTutor 占用）
+- **F01** ✅ 后端启动无 import 错误，根路由返回正确 JSON
+- **F02** ✅ SQLite 数据库初始化，memory.db 创建，营养 API 返回数据
+- **F03** ✅ ChromaDB 向量库自动加载（"✅ 知识库向量化完成"）
+- **F04** ✅ DeepSeek API 对话正常（发"你好"收到中文回复）
+- **F05** ✅ Function Calling 饮食记录（"白米饭+水煮蛋" → has_recording=true, 376kcal）
+- **F06** ✅ 营养进度条 API 返回 totals/targets/percentages/warnings
+- **F07** ✅ 食谱推荐 API 返回完整三餐建议
+- **F08** ✅ 记忆摘要 API 返回格式化的中文健康记录
+- 前端 `.env.local` 更新为 port 8001， dev server 重启
+
+### 发现的问题
+- Port 8000 被占用（MLTutor），改用 8001
+- 浏览器截图工具仍不可用（Playwright）
+- 前端 F09-F15 需要用户在浏览器中手动验证
+
+### 当前 Feature 状态
+- 总计: 16 个 feature
+- passing: 10 (F01-F08, F16)
+- failing: 6 (F09-F15 前端功能，需浏览器验证)
+- 下一步: 用户打开 localhost:3000 验证前端功能
+
