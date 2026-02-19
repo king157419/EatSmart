@@ -22,7 +22,7 @@
             "Step 3: curl GET /api/nutrition/today 返回包含 targets 的 JSON",
             "Step 4: 验证 targets 包含 calories=1800, fat=30, carbs=200, protein=60, fiber=25"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F03",
@@ -34,7 +34,7 @@
             "Step 3: 验证无报错，输出显示加载了多少文档片段",
             "Step 4: 通过 chat API 发送包含'胰腺炎能吃什么'的问题，验证返回的 sources 非空"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F04",
@@ -47,7 +47,7 @@
             "Step 4: 验证返回包含 sources 数组",
             "Step 5: 验证返回包含 has_recording 布尔值"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F05",
@@ -61,7 +61,7 @@
             "Step 5: curl GET /api/nutrition/today 验证 total_calories > 0",
             "Step 6: 验证营养数据（白米饭应由本地数据库查到，source=local_db）"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F06",
@@ -75,7 +75,7 @@
             "Step 5: 验证返回包含 percentages 对象，比例计算正确",
             "Step 6: 如果 fat 超过 30g，验证 warnings 数组包含脂肪超标警告"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "id": "F07",
