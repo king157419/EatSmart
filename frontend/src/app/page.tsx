@@ -693,7 +693,13 @@ export default function Home() {
                 </div>
                 <div>
                   <div className="message-content">
-                    <MarkdownRenderer content={msg.content} />
+                    {msg.role === "assistant" && !msg.content ? (
+                      <div className="loading-dots">
+                        <span /><span /><span />
+                      </div>
+                    ) : (
+                      <MarkdownRenderer content={msg.content} />
+                    )}
                     {msg.has_recording && (
                       <div className="record-badge">✅ 已记录到记忆库</div>
                     )}
@@ -704,17 +710,6 @@ export default function Home() {
                 </div>
               </div>
             ))}
-
-            {loading && (
-              <div className="message assistant">
-                <div className="message-avatar">🤖</div>
-                <div className="message-content">
-                  <div className="loading-dots">
-                    <span /><span /><span />
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
