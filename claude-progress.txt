@@ -1,0 +1,60 @@
+# EatSmart Progress Log
+
+## 2026-02-21 Session 2 - UI Enhancement
+
+### ✅ New Features Implemented
+1. **F16 - Toast Notification**
+   - 显示记录成功提示：✅ 已记录: 食物名 (热量)
+   - 3秒后自动消失
+
+2. **F17 - Progress Bar Colors**
+   - 绿色 (ok): 0-80%
+   - 黄色 (caution): 80-100%
+   - 橙色 (warning): >100%
+   - 红色 (danger): 脂肪超标时闪烁
+
+3. **F18 - History Modal**
+   - 点击"📋 记录"按钮查看今日饮食/运动记录
+   - 显示总热量统计
+
+### ✅ Record Agent Enhanced
+- 添加删除功能：说"删掉刚才的记录"可删除
+- 更智能的提示词，提高记录成功率
+- 显示今日已记录内容作为上下文
+
+### Technical Changes
+- `page.tsx`: 添加 Toast、HistoryModal 组件，更新 NutritionBar 颜色逻辑
+- `globals.css`: 添加 toast、progress-fill 颜色、history modal 样式
+- `record_agent.py`: 添加删除工具，改进 system prompt
+- `database.py`: 添加 delete_last_meal、get_today_records 函数
+- `deepseek_client.py`: 添加重试逻辑（3次重试）
+
+### Feature Status (18 total, 16 passing)
+| ID | Feature | Status |
+|----|---------|--------|
+| F01-F10 | Backend | ✅ All passing |
+| F11 | Citation panel | ⏳ Pending |
+| F12 | Recipe persistence | ✅ Passing |
+| F13 | Export functionality | ⏳ Pending |
+| F14-F15 | Frontend | ✅ Passing |
+| F16-F18 | New UI features | ✅ All passing |
+
+---
+## 2026-02-21 Session 1
+
+### ✅ Critical Issue RESOLVED
+**DeepSeek API 连接问题** - 已修复！
+
+**根本原因**: Windows HTTPS 请求大小限制 (~1200 bytes)
+- 解决: 精简 RECORD_TOOLS 到 629 bytes
+
+---
+## Format
+
+Each session should append:
+- Date
+- What was completed
+- What's in progress
+- Known issues found
+- Test results
+- Next steps

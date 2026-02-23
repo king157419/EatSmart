@@ -5,22 +5,11 @@
 import json
 import os
 from datetime import date
-from openai import OpenAI
 from food_db.food_lookup import calculate_nutrition, lookup_food
 from memory import database as db
 
-# DeepSeek API 客户端
-client = None
-
-
-def get_client() -> OpenAI:
-    global client
-    if client is None:
-        client = OpenAI(
-            api_key=os.getenv("DEEPSEEK_API_KEY"),
-            base_url="https://api.deepseek.com",
-        )
-    return client
+# 使用自定义的 requests 客户端（避免 httpx 在 Windows 上的兼容问题）
+from agents.deepseek_client import get_deepseek_client
 
 
 # ============================================================
@@ -32,33 +21,15 @@ RECORD_TOOLS = [
         "type": "function",
         "function": {
             "name": "record_meal",
-            "description": "记录用户的饮食信息。当用户提到吃了什么食物时调用。",
+            "description": "记录饮食，当用户说吃了什么食物时调用",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "meal_type": {
-                        "type": "string",
-                        "enum": ["早餐", "午餐", "晚餐", "加餐", "夜宵"],
-                        "description": "餐次类型。根据当前时间或用户描述推断。"
-                    },
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {"type": "string", "description": "食物名称"},
-                                "portion": {"type": "string", "description": "分量描述，如'一碗'、'一盘'、'两个'"},
-                                "calories": {"type": "number", "description": "估算热量(kcal)"},
-                                "protein": {"type": "number", "description": "估算蛋白质(g)"},
-                                "fat": {"type": "number", "description": "估算脂肪(g)"},
-                                "carbs": {"type": "number", "description": "估算碳水化合物(g)"},
-                            },
-                            "required": ["name", "portion", "calories", "protein", "fat", "carbs"]
-                        },
-                        "description": "食物列表"
-                    },
+                    "meal_type": {"type": "string", "description": "餐型：早餐/午餐/晚餐/加餐"},
+                    "food": {"type": "string", "description": "食物名称"},
+                    "portion": {"type": "string", "description": "份量，如：一碗、一个、100克"}
                 },
-                "required": ["meal_type", "items"]
+                "required": ["food"]
             }
         }
     },
@@ -66,39 +37,14 @@ RECORD_TOOLS = [
         "type": "function",
         "function": {
             "name": "record_exercise",
-            "description": "记录用户的运动信息。当用户提到运动或锻炼时调用。",
+            "description": "记录运动，当用户说做了什么运动时调用",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "exercise_type": {"type": "string", "description": "运动类型，如'散步'、'慢跑'、'太极拳'"},
-                    "duration_min": {"type": "integer", "description": "运动时长（分钟）"},
-                    "intensity": {
-                        "type": "string",
-                        "enum": ["light", "moderate", "vigorous"],
-                        "description": "运动强度"
-                    },
+                    "type": {"type": "string", "description": "运动类型：跑步/散步/游泳/骑车等"},
+                    "duration_min": {"type": "integer", "description": "运动时长（分钟）"}
                 },
-                "required": ["exercise_type", "duration_min"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "record_sleep",
-            "description": "记录用户的作息信息。当用户提到睡觉时间或睡眠质量时调用。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "bedtime": {"type": "string", "description": "入睡时间，如'23:00'"},
-                    "wake_time": {"type": "string", "description": "起床时间，如'07:00'"},
-                    "quality": {
-                        "type": "string",
-                        "enum": ["好", "一般", "差"],
-                        "description": "睡眠质量"
-                    },
-                },
-                "required": []
+                "required": ["type"]
             }
         }
     },
@@ -106,72 +52,64 @@ RECORD_TOOLS = [
         "type": "function",
         "function": {
             "name": "record_blood_sugar",
-            "description": "记录用户的血糖值。当用户提到测了血糖时调用。",
+            "description": "记录血糖，当用户说血糖数值时调用",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "value": {"type": "number", "description": "血糖值（mmol/L）"},
-                    "timing": {
-                        "type": "string",
-                        "enum": ["空腹", "餐后", "随机"],
-                        "description": "测量时机"
-                    },
+                    "value": {"type": "number", "description": "血糖值 mmol/L"},
+                    "timing": {"type": "string", "description": "测量时间：空腹/餐后/随机"}
                 },
-                "required": ["value", "timing"]
+                "required": ["value"]
             }
         }
     },
     {
         "type": "function",
         "function": {
-            "name": "record_medication",
-            "description": "记录用户的用药情况。当用户提到吃药或用药时调用。",
+            "name": "delete_last_meal",
+            "description": "删除最近一条饮食记录，当用户说删掉/撤销/取消刚才的记录时调用",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "med_name": {"type": "string", "description": "药物名称"},
-                    "taken": {"type": "boolean", "description": "是否已服用"},
-                },
-                "required": ["med_name", "taken"]
+                "properties": {},
+                "required": []
             }
         }
     },
     {
         "type": "function",
         "function": {
-            "name": "record_feeling",
-            "description": "记录用户的身体感受。当用户提到身体不舒服或感觉时调用。",
+            "name": "delete_last_exercise",
+            "description": "删除最近一条运动记录",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "description": {"type": "string", "description": "身体感受描述"},
-                },
-                "required": ["description"]
+                "properties": {},
+                "required": []
             }
         }
-    },
+    }
 ]
 
 
-RECORD_SYSTEM_PROMPT = """你是一个健康记录助手。你的任务是从用户的对话中提取健康相关的结构化数据。
+RECORD_SYSTEM_PROMPT = """你是一个智能健康数据助手。分析用户消息，执行相应操作。
 
-用户是一位2型糖尿病合并急性胰腺炎康复期的患者。
+## 记录规则
+- 用户提到"吃了"、"喝了"某种食物 → 调用 record_meal
+- 用户提到运动、锻炼 → 调用 record_exercise
+- 用户提到血糖数值 → 调用 record_blood_sugar
 
-当用户描述以下内容时，调用对应的工具：
-1. 吃了什么 → record_meal（根据当前时间自动推断餐次）
-2. 运动了 → record_exercise
-3. 睡觉信息 → record_sleep
-4. 血糖值 → record_blood_sugar
-5. 吃药了 → record_medication
-6. 身体感受（头晕、胃痛等）→ record_feeling
+## 删除规则
+- 用户说"删掉"、"撤销"、"取消"、"不对"、"记错了" → 调用对应的删除函数
+- 用户说"刚才记的不对" → 删除最近一条记录
 
-营养估算指南：
-- 对于常见中式食物，按"每100g"的标准营养数据乘以估算分量
-- "一碗"约200g, "一盘"约200g, "一份"约150g, "一个"约100g
-- 注意估算时要考虑烹饪方式：清蒸<少油炒<红烧<油炸
+## 示例
+- "我中午吃了一碗米饭" → record_meal(food="米饭", meal_type="午餐", portion="一碗")
+- "刚跑了30分钟" → record_exercise(type="跑步", duration_min=30)
+- "血糖7.5" → record_blood_sugar(value=7.5)
+- "删掉刚才的记录" → delete_last_meal()
+- "那个记错了，撤销" → delete_last_meal()
+- "你好" → 不调用任何函数
 
-如果用户的消息不包含任何需要记录的健康信息，不要调用任何工具。
-"""
+注意：如果用户消息不包含健康相关信息，不要调用任何函数，直接回复。"""
 
 
 async def process_record(user_message: str) -> dict:
@@ -181,125 +119,124 @@ async def process_record(user_message: str) -> dict:
     """
     today = date.today().isoformat()
 
-    api_client = get_client()
-    response = api_client.chat.completions.create(
+    # 获取今日记录摘要，帮助 AI 做更智能的判断
+    today_records = await db.get_today_records()
+    records_context = f"\n\n今日已记录：\n"
+    if today_records["meals"]:
+        for m in today_records["meals"][:5]:
+            records_context += f"- {m['meal_type']}: {m['food_name']}\n"
+    if today_records["exercises"]:
+        for e in today_records["exercises"][:3]:
+            records_context += f"- 运动: {e['exercise_type']} {e['duration_min']}分钟\n"
+    if today_records["blood_sugars"]:
+        for b in today_records["blood_sugars"][:3]:
+            records_context += f"- 血糖: {b['value']} mmol/L\n"
+
+    api_client = get_deepseek_client()
+    response = api_client.chat_completion(
         model="deepseek-chat",
         messages=[
-            {"role": "system", "content": RECORD_SYSTEM_PROMPT},
+            {"role": "system", "content": RECORD_SYSTEM_PROMPT + records_context},
             {"role": "user", "content": f"当前日期: {today}\n用户说: {user_message}"}
         ],
         tools=RECORD_TOOLS,
         tool_choice="auto",
     )
 
-    message = response.choices[0].message
+    message = response["choices"][0]["message"]
     results = {
         "recorded": False,
         "records": [],
         "nutrition_update": None,
     }
 
-    if not message.tool_calls:
+    # 检查是否有 tool_calls
+    tool_calls = message.get("tool_calls")
+    if not tool_calls:
         return results
 
     results["recorded"] = True
 
-    for tool_call in message.tool_calls:
-        fn_name = tool_call.function.name
-        args = json.loads(tool_call.function.arguments)
+    for tool_call in tool_calls:
+        fn_name = tool_call["function"]["name"]
+        args = json.loads(tool_call["function"]["arguments"])
         record_info = {"type": fn_name, "data": args}
 
         if fn_name == "record_meal":
-            meal_type = args["meal_type"]
-            for item in args.get("items", []):
-                # 先查本地数据库
-                local_data = calculate_nutrition(item["name"], item.get("portion", "一份"))
-                if local_data:
-                    # 用本地数据覆盖 AI 估算
-                    calories = local_data["calories"]
-                    protein = local_data["protein"]
-                    fat = local_data["fat"]
-                    carbs = local_data["carbs"]
-                    fiber = local_data["fiber"]
-                    source = "local_db"
-                else:
-                    # 使用 AI 估算
-                    calories = item.get("calories", 0)
-                    protein = item.get("protein", 0)
-                    fat = item.get("fat", 0)
-                    carbs = item.get("carbs", 0)
-                    fiber = 0
-                    source = "ai_estimate"
+            meal_type = args.get("meal_type", "加餐")
+            food = args.get("food", "")
+            portion = args.get("portion", "一份")
 
-                # 生成风险标签
-                risk_tags = []
-                if fat > 10:
-                    risk_tags.append("高脂⚠️")
-                if carbs > 50:
-                    risk_tags.append("高碳水⚠️")
+            # 查本地数据库获取营养信息
+            local_data = calculate_nutrition(food, portion)
+            if local_data:
+                calories = local_data["calories"]
+                protein = local_data["protein"]
+                fat = local_data["fat"]
+                carbs = local_data["carbs"]
+                fiber = local_data["fiber"]
+            else:
+                # 没有本地数据，使用默认估算
+                calories = 200
+                protein = 5
+                fat = 5
+                carbs = 30
+                fiber = 2
 
-                await db.add_meal(
-                    meal_date=today,
-                    meal_type=meal_type,
-                    food_name=item["name"],
-                    portion=item.get("portion", ""),
-                    grams=local_data["grams"] if local_data else 0,
-                    calories=calories,
-                    protein=protein,
-                    fat=fat,
-                    carbs=carbs,
-                    fiber=fiber,
-                    gi=local_data["gi"] if local_data else 0,
-                    risk_tags=",".join(risk_tags),
-                    source=source,
-                )
-
-            # 获取更新后的营养摘要
-            results["nutrition_update"] = await db.get_daily_nutrition_summary(today)
+            await db.add_meal(
+                meal_date=today,
+                meal_type=meal_type,
+                food_name=food,
+                portion=portion,
+                calories=calories,
+                protein=protein,
+                fat=fat,
+                carbs=carbs,
+                fiber=fiber
+            )
+            record_info["nutrition"] = {"calories": calories, "protein": protein, "fat": fat, "carbs": carbs}
+            record_info["message"] = f"已记录: {meal_type} - {food}"
 
         elif fn_name == "record_exercise":
-            # 估算消耗热量（简单公式）
-            duration = args.get("duration_min", 0)
-            intensity_map = {"light": 3, "moderate": 5, "vigorous": 8}
-            cal_per_min = intensity_map.get(args.get("intensity", "moderate"), 5)
-            calories_burned = duration * cal_per_min
-
+            exercise_type = args.get("type", "运动")
+            duration = args.get("duration_min", 30)
             await db.add_exercise(
                 exercise_date=today,
-                exercise_type=args["exercise_type"],
+                exercise_type=exercise_type,
                 duration_min=duration,
-                intensity=args.get("intensity", "moderate"),
-                calories_burned=calories_burned,
+                intensity="moderate",
+                calories_burned=duration * 5  # 简单估算
             )
-
-        elif fn_name == "record_sleep":
-            await db.add_sleep(
-                sleep_date=today,
-                bedtime=args.get("bedtime", ""),
-                wake_time=args.get("wake_time", ""),
-                quality=args.get("quality", ""),
-            )
+            record_info["message"] = f"已记录运动: {exercise_type} {duration}分钟"
 
         elif fn_name == "record_blood_sugar":
+            value = args.get("value", 0)
+            timing = args.get("timing", "随机")
             await db.add_blood_sugar(
                 measure_date=today,
-                value=args["value"],
-                timing=args.get("timing", "随机"),
+                value=value,
+                timing=timing
             )
+            record_info["message"] = f"已记录血糖: {value} mmol/L ({timing})"
 
-        elif fn_name == "record_medication":
-            await db.add_medication(
-                med_date=today,
-                med_name=args["med_name"],
-                taken=args.get("taken", True),
-            )
+        elif fn_name == "delete_last_meal":
+            deleted = await db.delete_last_meal(today)
+            if deleted:
+                record_info["message"] = "已删除最近一条饮食记录"
+            else:
+                record_info["message"] = "没有找到可删除的饮食记录"
 
-        elif fn_name == "record_feeling":
-            await db.add_body_feeling(
-                feeling_date=today,
-                description=args["description"],
-            )
+        elif fn_name == "delete_last_exercise":
+            deleted = await db.delete_last_exercise(today)
+            if deleted:
+                record_info["message"] = "已删除最近一条运动记录"
+            else:
+                record_info["message"] = "没有找到可删除的运动记录"
 
         results["records"].append(record_info)
+
+    # 获取更新后的营养摘要
+    nutrition = await db.get_daily_nutrition_summary(today)
+    results["nutrition_update"] = nutrition
 
     return results

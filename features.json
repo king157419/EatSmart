@@ -1,0 +1,115 @@
+{
+  "features": [
+    {
+      "id": "F01",
+      "name": "Backend startup",
+      "description": "Backend starts correctly with config.py, .env, and agent harness files",
+      "passes": 1
+    },
+    {
+      "id": "F02",
+      "name": "Database initialization",
+      "description": "SQLite database creates tables correctly on startup",
+      "passes": 1
+    },
+    {
+      "id": "F03",
+      "name": "RAG knowledge base",
+      "description": "ChromaDB loads and queries knowledge base",
+      "passes": 1
+    },
+    {
+      "id": "F04",
+      "name": "DeepSeek chat",
+      "description": "Chat endpoint returns LLM responses via DeepSeek API",
+      "passes": 1
+    },
+    {
+      "id": "F05",
+      "name": "Meal recording",
+      "description": "record_agent extracts meal data and saves to database",
+      "passes": 1
+    },
+    {
+      "id": "F06",
+      "name": "Nutrition API",
+      "description": "GET /api/nutrition/today returns daily nutrition summary",
+      "passes": 1
+    },
+    {
+      "id": "F07",
+      "name": "Recipe generation",
+      "description": "POST /api/recipe generates personalized recipes",
+      "passes": 1
+    },
+    {
+      "id": "F08",
+      "name": "Memory summary",
+      "description": "GET /api/memory/summary returns 7-day health summary",
+      "passes": 1
+    },
+    {
+      "id": "F09",
+      "name": "Streaming chat (SSE)",
+      "description": "POST /api/chat/stream returns Server-Sent Events for real-time response",
+      "passes": 1
+    },
+    {
+      "id": "F10",
+      "name": "Markdown rendering",
+      "description": "Frontend renders Markdown in chat messages and recipes",
+      "passes": 1
+    },
+    {
+      "id": "F11",
+      "name": "Citation panel",
+      "description": "Chat shows RAG source citations when available",
+      "passes": 0
+    },
+    {
+      "id": "F12",
+      "name": "Recipe persistence",
+      "description": "Recipes auto-save, persist across sessions, and respect daily refresh logic",
+      "passes": 1
+    },
+    {
+      "id": "F13",
+      "name": "Export functionality",
+      "description": "Recipes can be exported as PNG/PDF",
+      "passes": 0
+    },
+    {
+      "id": "F14",
+      "name": "Frontend startup",
+      "description": "Next.js dev server starts without errors",
+      "passes": 1
+    },
+    {
+      "id": "F15",
+      "name": "End-to-end chat",
+      "description": "User can send message and receive streaming response with Markdown",
+      "passes": 1,
+      "notes": "Fixed by simplifying RECORD_TOOLS to stay under Windows request size limit (~1200 bytes)"
+    },
+    {
+      "id": "F16",
+      "name": "Toast notification",
+      "description": "Show toast notification when food/exercise is recorded successfully",
+      "passes": 1
+    },
+    {
+      "id": "F17",
+      "name": "Progress bar colors",
+      "description": "Nutrition progress bars change color: green (ok), yellow (near limit), red (exceeded)",
+      "passes": 1
+    },
+    {
+      "id": "F18",
+      "name": "History modal",
+      "description": "Modal to view today's meal and exercise records",
+      "passes": 1
+    }
+  ],
+  "last_updated": "2026-02-21",
+  "notes": "passes: 0=pending/investigating, 1=verified working, 2+=needed multiple attempts"
+}

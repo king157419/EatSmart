@@ -97,6 +97,15 @@ async def init_db():
                 fiber REAL DEFAULT 25,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS saved_recipes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                recipe_date DATE NOT NULL,
+                title TEXT DEFAULT '',
+                content TEXT NOT NULL,
+                is_favorite INTEGER DEFAULT 0
+            );
         """)
         # 插入默认营养目标（如果不存在）
         cursor = await db.execute("SELECT COUNT(*) FROM nutrition_targets")
@@ -430,5 +439,160 @@ async def update_nutrition_targets(calories: float = None, fat: float = None,
                 )
             )
             await db.commit()
+    finally:
+        await db.close()
+
+
+# ============================================================
+# 食谱保存
+# ============================================================
+
+async def save_recipe(recipe_date: str, content: str, title: str = "") -> int:
+    """保存食谱"""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """INSERT INTO saved_recipes (recipe_date, title, content)
+               VALUES (?, ?, ?)""",
+            (recipe_date, title, content)
+        )
+        await db.commit()
+        return cursor.lastrowid
+    finally:
+        await db.close()
+
+
+async def get_saved_recipes(recipe_date: str = None, limit: int = 10) -> list[dict]:
+    """获取保存的食谱"""
+    db = await get_db()
+    try:
+        if recipe_date:
+            cursor = await db.execute(
+                """SELECT * FROM saved_recipes
+                   WHERE recipe_date = ?
+                   ORDER BY created_at DESC LIMIT ?""",
+                (recipe_date, limit)
+            )
+        else:
+            cursor = await db.execute(
+                """SELECT * FROM saved_recipes
+                   ORDER BY created_at DESC LIMIT ?""",
+                (limit,)
+            )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        await db.close()
+
+
+async def get_today_recipe() -> Optional[dict]:
+    """获取今天的食谱（如果已保存）"""
+    today = date.today().isoformat()
+    recipes = await get_saved_recipes(recipe_date=today, limit=1)
+    return recipes[0] if recipes else None
+
+
+async def delete_recipe(recipe_id: int):
+    """删除食谱"""
+    db = await get_db()
+    try:
+        await db.execute("DELETE FROM saved_recipes WHERE id = ?", (recipe_id,))
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def delete_last_meal(meal_date: str = None):
+    """删除最近的一条饮食记录"""
+    if not meal_date:
+        meal_date = date.today().isoformat()
+    db = await get_db()
+    try:
+        # 获取最近一条记录
+        cursor = await db.execute(
+            "SELECT id FROM meals WHERE meal_date = ? ORDER BY created_at DESC LIMIT 1",
+            (meal_date,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            await db.execute("DELETE FROM meals WHERE id = ?", (row[0],))
+            await db.commit()
+            return True
+        return False
+    finally:
+        await db.close()
+
+
+async def delete_last_exercise(exercise_date: str = None):
+    """删除最近的一条运动记录"""
+    if not exercise_date:
+        exercise_date = date.today().isoformat()
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT id FROM exercises WHERE exercise_date = ? ORDER BY created_at DESC LIMIT 1",
+            (exercise_date,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            await db.execute("DELETE FROM exercises WHERE id = ?", (row[0],))
+            await db.commit()
+            return True
+        return False
+    finally:
+        await db.close()
+
+
+async def delete_last_blood_sugar(measure_date: str = None):
+    """删除最近的一条血糖记录"""
+    if not measure_date:
+        measure_date = date.today().isoformat()
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT id FROM blood_sugar WHERE measure_date = ? ORDER BY created_at DESC LIMIT 1",
+            (measure_date,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            await db.execute("DELETE FROM blood_sugar WHERE id = ?", (row[0],))
+            await db.commit()
+            return True
+        return False
+    finally:
+        await db.close()
+
+
+async def get_today_records():
+    """获取今日所有记录（用于智能删除）"""
+    today = date.today().isoformat()
+    db = await get_db()
+    try:
+        # 获取今日饮食
+        meals_cursor = await db.execute(
+            "SELECT id, meal_type, food_name, created_at FROM meals WHERE meal_date = ? ORDER BY created_at DESC",
+            (today,)
+        )
+        meals = [dict(row) for row in await meals_cursor.fetchall()]
+
+        # 获取今日运动
+        exercises_cursor = await db.execute(
+            "SELECT id, exercise_type, duration_min, created_at FROM exercises WHERE exercise_date = ? ORDER BY created_at DESC",
+            (today,)
+        )
+        exercises = [dict(row) for row in await exercises_cursor.fetchall()]
+
+        # 获取今日血糖
+        bs_cursor = await db.execute(
+            "SELECT id, value, timing, created_at FROM blood_sugar WHERE measure_date = ? ORDER BY created_at DESC",
+            (today,)
+        )
+        blood_sugars = [dict(row) for row in await bs_cursor.fetchall()]
+
+        return {
+            "meals": meals,
+            "exercises": exercises,
+            "blood_sugars": blood_sugars
+        }
     finally:
         await db.close()

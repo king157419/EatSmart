@@ -3,24 +3,16 @@
 """
 
 import os
+import json
 from datetime import date
-from openai import OpenAI
+from typing import AsyncGenerator
 from rag.retriever import retrieve, RAGResult
 from memory.database import get_recent_memory_summary, get_daily_nutrition_summary
 from agents.record_agent import process_record
 from pydantic import BaseModel
 
-client = None
-
-
-def get_client() -> OpenAI:
-    global client
-    if client is None:
-        client = OpenAI(
-            api_key=os.getenv("DEEPSEEK_API_KEY"),
-            base_url="https://api.deepseek.com",
-        )
-    return client
+# 使用自定义的 requests 客户端（避免 httpx 在 Windows 上的兼容问题）
+from agents.deepseek_client import get_deepseek_client
 
 
 class ChatResponse(BaseModel):
@@ -72,8 +64,12 @@ async def chat(user_message: str, conversation_history: list[dict] = None) -> Ch
     """
     today = date.today().isoformat()
 
-    # Step 1: 调用记录 Agent
-    record_result = await process_record(user_message)
+    # Step 1: 调用记录 Agent（失败时跳过）
+    try:
+        record_result = await process_record(user_message)
+    except Exception as e:
+        print(f"[WARN] 记录 Agent 失败: {e}")
+        record_result = {"recorded": False, "records": [], "nutrition_update": None}
 
     # Step 2: RAG 检索
     rag_result = retrieve(user_message, top_k=3)
@@ -114,15 +110,15 @@ async def chat(user_message: str, conversation_history: list[dict] = None) -> Ch
         messages.extend(conversation_history[-10:])  # 保留最近10轮对话
     messages.append({"role": "user", "content": enhanced_message})
 
-    api_client = get_client()
-    response = api_client.chat.completions.create(
+    api_client = get_deepseek_client()
+    response = api_client.chat_completion(
         model="deepseek-chat",
         messages=messages,
         temperature=0.7,
         max_tokens=1500,
     )
 
-    reply_text = response.choices[0].message.content
+    reply_text = response["choices"][0]["message"]["content"]
 
     # 构建引用来源
     sources = [
@@ -134,13 +130,135 @@ async def chat(user_message: str, conversation_history: list[dict] = None) -> Ch
         for chunk in rag_result.chunks
     ]
 
+    # 过滤低相关性来源（阈值 0.3）
+    filtered_sources = [s for s in sources if s.get("relevance", 0) > 0.3]
+
     return ChatResponse(
         reply=reply_text,
-        sources=sources,
+        sources=filtered_sources,
         nutrition_summary=record_result.get("nutrition_update") or nutrition,
         records=record_result.get("records", []),
         has_recording=record_result["recorded"],
     )
+
+
+async def stream_chat(
+    user_message: str,
+    conversation_history: list[dict] = None
+) -> AsyncGenerator[str, None]:
+    """
+    流式处理用户消息，返回 SSE 格式的事件流。
+
+    事件格式：
+    - data: {"type": "prepare", "message": "正在思考..."}
+    - data: {"type": "sources", "sources": [...]}
+    - data: {"type": "content", "delta": "文本片段"}
+    - data: {"type": "done", "nutrition_summary": {...}, "records": [...]}
+    """
+    today = date.today().isoformat()
+
+    # Step 1: 发送准备状态
+    yield f'data: {json.dumps({"type": "prepare", "message": "正在分析..."}, ensure_ascii=False)}\n\n'
+
+    # Step 2: 调用记录 Agent（失败时跳过）
+    try:
+        record_result = await process_record(user_message)
+    except Exception as e:
+        print(f"[WARN] 记录 Agent 失败: {e}")
+        record_result = {"recorded": False, "records": [], "nutrition_update": None}
+
+    # Step 3: RAG 检索
+    rag_result = retrieve(user_message, top_k=3)
+
+    # Step 4: 获取记忆摘要
+    memory_summary = await get_recent_memory_summary(days=7)
+
+    # Step 5: 获取当日营养数据
+    nutrition = await get_daily_nutrition_summary(today)
+
+    # Step 6: 构建 system prompt
+    system_prompt = SYSTEM_PROMPT.format(
+        rag_context=rag_result.context_text,
+        memory_context=memory_summary,
+    )
+
+    # 构建增强消息
+    enhanced_message = user_message
+    if record_result["recorded"]:
+        record_summary_parts = []
+        for rec in record_result["records"]:
+            record_summary_parts.append(f"[系统: 已自动记录 {rec['type']}: {rec['data']}]")
+        enhanced_message += "\n\n" + "\n".join(record_summary_parts)
+
+        if nutrition:
+            nut = nutrition
+            enhanced_message += (
+                f"\n[系统: 今日营养累计 - "
+                f"热量{nut['total_calories']:.0f}/{nut['targets']['calories']}kcal "
+                f"脂肪{nut['total_fat']:.1f}/{nut['targets']['fat']}g "
+                f"碳水{nut['total_carbs']:.1f}/{nut['targets']['carbs']}g "
+                f"蛋白质{nut['total_protein']:.1f}/{nut['targets']['protein']}g]"
+            )
+
+    # Step 7: 发送引用来源（过滤低相关性）
+    sources = [
+        {
+            "file": chunk.source_file,
+            "content": chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content,
+            "relevance": chunk.relevance_score,
+        }
+        for chunk in rag_result.chunks
+        if chunk.relevance_score > 0.3  # 过滤低相关性
+    ]
+    yield f'data: {json.dumps({"type": "sources", "sources": sources}, ensure_ascii=False)}\n\n'
+
+    # Step 8: 流式调用大模型（失败时回退到阻塞模式）
+    messages = [{"role": "system", "content": system_prompt}]
+    if conversation_history:
+        messages.extend(conversation_history[-10:])
+    messages.append({"role": "user", "content": enhanced_message})
+
+    api_client = get_deepseek_client()
+
+    try:
+        # 尝试流式调用
+        stream = api_client.stream_completion(
+            model="deepseek-chat",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1500,
+        )
+
+        for chunk in stream:
+            if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
+                delta = chunk["choices"][0]["delta"]["content"]
+                yield f'data: {json.dumps({"type": "content", "delta": delta}, ensure_ascii=False)}\n\n'
+    except Exception as e:
+        # 流式失败，回退到阻塞模式并模拟流式输出
+        print(f"[WARN] 流式调用失败，回退到阻塞模式: {e}")
+        response = api_client.chat_completion(
+            model="deepseek-chat",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1500,
+        )
+
+        if response.get("choices") and response["choices"][0].get("message", {}).get("content"):
+            full_reply = response["choices"][0]["message"]["content"]
+            # 模拟流式输出，每次发送几个字符
+            chunk_size = 5
+            for i in range(0, len(full_reply), chunk_size):
+                delta = full_reply[i:i+chunk_size]
+                yield f'data: {json.dumps({"type": "content", "delta": delta}, ensure_ascii=False)}\n\n'
+
+    # Step 9: 发送完成事件
+    done_data = {
+        "type": "done",
+        "nutrition_summary": record_result.get("nutrition_update") or nutrition,
+        "records": record_result.get("records", []),
+        "has_recording": record_result["recorded"],
+    }
+    yield f'data: {json.dumps(done_data, ensure_ascii=False)}\n\n'
 
 
 async def generate_recipe(preferences: str = "") -> str:
@@ -176,8 +294,8 @@ async def generate_recipe(preferences: str = "") -> str:
 - 提供替换选项（标注 🔄 可替换为XXX）
 """
 
-    api_client = get_client()
-    response = api_client.chat.completions.create(
+    api_client = get_deepseek_client()
+    response = api_client.chat_completion(
         model="deepseek-chat",
         messages=[
             {"role": "system", "content": "你是一个专业的营养师，擅长为糖尿病和胰腺炎康复期患者设计低脂低GI食谱。"},
@@ -187,4 +305,4 @@ async def generate_recipe(preferences: str = "") -> str:
         max_tokens=2000,
     )
 
-    return response.choices[0].message.content
+    return response["choices"][0]["message"]["content"]

@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -21,8 +22,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from memory.database import (
     init_db, get_daily_nutrition_summary, get_daily_meals,
     get_recent_memory_summary, update_nutrition_targets,
+    save_recipe, get_saved_recipes, get_today_recipe, delete_recipe,
 )
-from agents.chat_agent import chat, generate_recipe, ChatResponse
+from agents.chat_agent import chat, generate_recipe, ChatResponse, stream_chat
 from rag.retriever import reload_vectorstore
 
 
@@ -33,20 +35,20 @@ from rag.retriever import reload_vectorstore
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动/关闭时的初始化"""
-    print("🚀 EatSmart 健康管家启动中...")
+    print("[*] EatSmart 健康管家启动中...")
     await init_db()
-    print("✅ 数据库初始化完成")
+    print("[OK] 数据库初始化完成")
 
     # 尝试初始化向量库（可能失败，不影响启动）
     try:
         from rag.loader import build_vector_store
         build_vector_store(force_rebuild=False)
-        print("✅ 知识库向量化完成")
+        print("[OK] 知识库向量化完成")
     except Exception as e:
-        print(f"⚠️ 知识库加载失败（首次运行请确认 embedding 配置）: {e}")
+        print(f"[WARN] 知识库加载失败（首次运行请确认 embedding 配置）: {e}")
 
     yield
-    print("👋 EatSmart 关闭")
+    print("[*] EatSmart 关闭")
 
 
 app = FastAPI(
@@ -77,6 +79,11 @@ class ChatRequest(BaseModel):
 
 class RecipeRequest(BaseModel):
     preferences: str = ""
+
+
+class RecipeSaveRequest(BaseModel):
+    content: str
+    title: str = ""
 
 
 class NutritionTargetUpdate(BaseModel):
@@ -112,14 +119,97 @@ async def api_chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=f"对话处理失败: {str(e)}")
 
 
+@app.post("/api/chat/stream")
+async def api_chat_stream(request: ChatRequest):
+    """
+    流式对话接口 - 返回 SSE 格式的事件流。
+    事件类型: prepare → sources → content (多次) → done
+    """
+    return StreamingResponse(
+        stream_chat(
+            user_message=request.message,
+            conversation_history=request.conversation_history,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.post("/api/recipe")
 async def api_recipe(request: RecipeRequest):
-    """生成食谱推荐"""
+    """
+    获取或生成今日食谱
+    - 自动保存生成的新食谱
+    - 如果今天已有食谱，直接返回
+    - preferences="new" 强制重新生成
+    """
     try:
-        recipe = await generate_recipe(preferences=request.preferences)
-        return {"recipe": recipe}
+        today = date.today().isoformat()
+
+        # 检查是否强制刷新
+        force_new = request.preferences == "new"
+        preferences = "" if force_new else request.preferences
+
+        # 获取今天已保存的食谱
+        existing = await get_today_recipe()
+
+        # 如果强制刷新，删除旧的
+        if force_new and existing:
+            await delete_recipe(existing["id"])
+            existing = None
+
+        # 如果有今天的食谱，直接返回
+        if existing:
+            return {"recipe": existing["content"], "saved": True, "id": existing["id"]}
+
+        # 生成新食谱并自动保存
+        recipe = await generate_recipe(preferences=preferences)
+        recipe_id = await save_recipe(recipe_date=today, content=recipe, title="今日食谱")
+
+        return {"recipe": recipe, "saved": True, "id": recipe_id}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"食谱生成失败: {str(e)}")
+
+
+@app.post("/api/recipe/save")
+async def api_save_recipe(request: RecipeSaveRequest):
+    """保存食谱"""
+    try:
+        today = date.today().isoformat()
+        recipe_id = await save_recipe(
+            recipe_date=today,
+            content=request.content,
+            title=request.title
+        )
+        return {"message": "食谱已保存", "id": recipe_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存失败: {str(e)}")
+
+
+@app.get("/api/recipe/saved")
+async def api_get_saved_recipes(limit: int = 10):
+    """获取保存的食谱列表"""
+    try:
+        recipes = await get_saved_recipes(limit=limit)
+        return {"recipes": recipes}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/recipe/{recipe_id}")
+async def api_delete_recipe(recipe_id: int):
+    """删除食谱"""
+    try:
+        await delete_recipe(recipe_id)
+        return {"message": "食谱已删除"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/nutrition/today")
