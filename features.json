@@ -64,7 +64,7 @@
       "id": "F11",
       "name": "Citation panel",
       "description": "Chat shows RAG source citations when available",
-      "passes": 0
+      "passes": 1
     },
     {
       "id": "F12",
@@ -76,7 +76,7 @@
       "id": "F13",
       "name": "Export functionality",
       "description": "Recipes can be exported as PNG/PDF",
-      "passes": 0
+      "passes": 1
     },
     {
       "id": "F14",
@@ -110,6 +110,6 @@
       "passes": 1
     }
   ],
-  "last_updated": "2026-02-21",
+  "last_updated": "2026-02-23",
   "notes": "passes: 0=pending/investigating, 1=verified working, 2+=needed multiple attempts"
 }
