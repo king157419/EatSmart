@@ -23,9 +23,12 @@ from memory.database import (
     init_db, get_daily_nutrition_summary, get_daily_meals,
     get_recent_memory_summary, update_nutrition_targets,
     save_recipe, get_saved_recipes, get_today_recipe, delete_recipe,
+    add_meal,
+    delete_meal_by_id, delete_exercise_by_id, delete_blood_sugar_by_id,
 )
 from agents.chat_agent import chat, generate_recipe, ChatResponse, stream_chat
 from rag.retriever import reload_vectorstore
+from food_db.food_options import get_food_options, find_food_option, FoodOption
 
 
 # ============================================================
@@ -92,6 +95,16 @@ class NutritionTargetUpdate(BaseModel):
     carbs: float | None = None
     protein: float | None = None
     fiber: float | None = None
+
+
+class QuickRecordItem(BaseModel):
+    name: str
+    portion: str = "一份"
+
+
+class QuickRecordRequest(BaseModel):
+    meal_type: str
+    foods: list[QuickRecordItem]
 
 
 # ============================================================
@@ -254,6 +267,51 @@ async def api_meals_by_date(target_date: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/api/meal/{meal_id}")
+async def api_delete_meal(meal_id: int):
+    """删除单条饮食记录"""
+    try:
+        success = await delete_meal_by_id(meal_id)
+        if success:
+            return {"message": "记录已删除", "id": meal_id}
+        else:
+            raise HTTPException(status_code=404, detail="记录不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/exercise/{exercise_id}")
+async def api_delete_exercise(exercise_id: int):
+    """删除单条运动记录"""
+    try:
+        success = await delete_exercise_by_id(exercise_id)
+        if success:
+            return {"message": "记录已删除", "id": exercise_id}
+        else:
+            raise HTTPException(status_code=404, detail="记录不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/blood-sugar/{record_id}")
+async def api_delete_blood_sugar(record_id: int):
+    """删除单条血糖记录"""
+    try:
+        success = await delete_blood_sugar_by_id(record_id)
+        if success:
+            return {"message": "记录已删除", "id": record_id}
+        else:
+            raise HTTPException(status_code=404, detail="记录不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/memory/summary")
 async def api_memory_summary():
     """获取最近 7 天的健康记忆摘要"""
@@ -288,3 +346,100 @@ async def api_reload_knowledge():
         return {"message": "知识库重新加载完成"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/food-options")
+async def api_food_options():
+    """获取推荐食物选项（按类别分组）"""
+    try:
+        options = get_food_options()
+        return options.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/quick-record")
+async def api_quick_record(request: QuickRecordRequest):
+    """
+    快捷记录 - 批量记录多份食物
+    返回记录结果和营养汇总
+    """
+    try:
+        today = date.today().isoformat()
+        recorded_foods = []
+        total_calories = 0
+        total_fat = 0
+        total_carbs = 0
+        total_protein = 0
+
+        for item in request.foods:
+            food_option = find_food_option(item.name)
+            if food_option:
+                # 使用食物选项的数据
+                await add_meal(
+                    meal_date=today,
+                    meal_type=request.meal_type,
+                    food_name=food_option.name,
+                    portion=item.portion,
+                    grams=food_option.portion_grams,
+                    calories=food_option.calories,
+                    protein=food_option.protein,
+                    fat=food_option.fat,
+                    carbs=food_option.carbs,
+                    fiber=0,
+                    gi=0,
+                    risk_tags="",
+                    source="quick_record"
+                )
+                recorded_foods.append({
+                    "name": food_option.name,
+                    "portion": item.portion,
+                    "calories": food_option.calories,
+                    "fat": food_option.fat
+                })
+                total_calories += food_option.calories
+                total_fat += food_option.fat
+                total_carbs += food_option.carbs
+                total_protein += food_option.protein
+            else:
+                # 食物不在选项中，记录基本信息
+                await add_meal(
+                    meal_date=today,
+                    meal_type=request.meal_type,
+                    food_name=item.name,
+                    portion=item.portion,
+                    grams=150,
+                    calories=0,
+                    protein=0,
+                    fat=0,
+                    carbs=0,
+                    fiber=0,
+                    gi=0,
+                    risk_tags="",
+                    source="quick_record_unknown"
+                )
+                recorded_foods.append({
+                    "name": item.name,
+                    "portion": item.portion,
+                    "calories": 0,
+                    "fat": 0
+                })
+
+        # 获取更新后的今日营养汇总
+        nutrition_summary = await get_daily_nutrition_summary(today)
+
+        return {
+            "recorded": True,
+            "recorded_foods": recorded_foods,
+            "nutrition_summary": {
+                "calories": total_calories,
+                "fat": total_fat,
+                "carbs": total_carbs,
+                "protein": total_protein
+            },
+            "today_totals": nutrition_summary
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"快捷记录失败: {str(e)}")

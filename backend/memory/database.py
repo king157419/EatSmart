@@ -523,6 +523,33 @@ async def delete_last_meal(meal_date: str = None):
         await db.close()
 
 
+async def delete_meal_by_name(food_keyword: str, meal_date: str = None) -> tuple[bool, str]:
+    """
+    按食物名称删除最近一条匹配的记录。
+    返回 (是否删除成功, 被删除的食物名称)
+    """
+    if not meal_date:
+        meal_date = date.today().isoformat()
+    db = await get_db()
+    try:
+        # 模糊匹配：包含关键词即可
+        cursor = await db.execute(
+            """SELECT id, food_name FROM meals
+               WHERE meal_date = ? AND food_name LIKE ?
+               ORDER BY created_at DESC LIMIT 1""",
+            (meal_date, f"%{food_keyword}%")
+        )
+        row = await cursor.fetchone()
+        if row:
+            deleted_name = row[1]
+            await db.execute("DELETE FROM meals WHERE id = ?", (row[0],))
+            await db.commit()
+            return True, deleted_name
+        return False, ""
+    finally:
+        await db.close()
+
+
 async def delete_last_exercise(exercise_date: str = None):
     """删除最近的一条运动记录"""
     if not exercise_date:
@@ -559,6 +586,43 @@ async def delete_last_blood_sugar(measure_date: str = None):
             await db.commit()
             return True
         return False
+    finally:
+        await db.close()
+
+
+# ============================================================
+# 按 ID 删除记录（用于前端手动删除）
+# ============================================================
+
+async def delete_meal_by_id(meal_id: int) -> bool:
+    """按 ID 删除饮食记录"""
+    db = await get_db()
+    try:
+        cursor = await db.execute("DELETE FROM meals WHERE id = ?", (meal_id,))
+        await db.commit()
+        return cursor.rowcount > 0
+    finally:
+        await db.close()
+
+
+async def delete_exercise_by_id(exercise_id: int) -> bool:
+    """按 ID 删除运动记录"""
+    db = await get_db()
+    try:
+        cursor = await db.execute("DELETE FROM exercises WHERE id = ?", (exercise_id,))
+        await db.commit()
+        return cursor.rowcount > 0
+    finally:
+        await db.close()
+
+
+async def delete_blood_sugar_by_id(record_id: int) -> bool:
+    """按 ID 删除血糖记录"""
+    db = await get_db()
+    try:
+        cursor = await db.execute("DELETE FROM blood_sugar WHERE id = ?", (record_id,))
+        await db.commit()
+        return cursor.rowcount > 0
     finally:
         await db.close()
 

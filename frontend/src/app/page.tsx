@@ -42,7 +42,38 @@ interface ChatMessage {
   content: string;
   sources?: Source[];
   has_recording?: boolean;
-  records?: Array<{ type: string; data: Record<string, unknown> }>;
+  records?: Array<{ type: string; data: Record<string, unknown>; message?: string; nutrition?: { calories?: number } }>;
+}
+
+// 食物选项相关接口
+interface FoodOption {
+  name: string;
+  calories: number;
+  fat: number;
+  carbs: number;
+  protein: number;
+  portion_default: string;
+  portion_grams: number;
+}
+
+interface FoodCategory {
+  name: string;
+  emoji: string;
+  foods: FoodOption[];
+}
+
+interface FoodOptionsResponse {
+  categories: FoodCategory[];
+  meal_types: string[];
+}
+
+interface SelectedFood {
+  name: string;
+  portion: string;
+  calories: number;
+  fat: number;
+  carbs: number;
+  protein: number;
 }
 
 // ============================================================
@@ -68,7 +99,7 @@ interface StreamCallbacks {
   onPrepare: (message: string) => void;
   onSources: (sources: Source[]) => void;
   onContent: (delta: string) => void;
-  onDone: (data: { nutrition_summary?: NutritionSummary; records?: Array<{ type: string; data: Record<string, unknown> }>; has_recording?: boolean }) => void;
+  onDone: (data: { nutrition_summary?: NutritionSummary; records?: Array<{ type: string; data: Record<string, unknown>; message?: string; nutrition?: { calories?: number } }>; has_recording?: boolean }) => void;
   onError: (error: string) => void;
 }
 
@@ -148,16 +179,6 @@ async function apiRecipe(preferences: string = "") {
     body: JSON.stringify({ preferences }),
   });
   if (!res.ok) throw new Error("食谱生成失败");
-  return res.json();
-}
-
-async function apiSaveRecipe(content: string, title: string = "") {
-  const res = await fetch(`${API_BASE}/api/recipe/save`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content, title }),
-  });
-  if (!res.ok) throw new Error("保存失败");
   return res.json();
 }
 
@@ -280,10 +301,14 @@ function HistoryModal({
   meals,
   exercises,
   onClose,
+  onDeleteMeal,
+  onDeleteExercise,
 }: {
   meals: MealRecord[];
   exercises: ExerciseRecord[];
   onClose: () => void;
+  onDeleteMeal: (mealId: number) => void;
+  onDeleteExercise: (exerciseId: number) => void;
 }) {
   const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
 
@@ -303,6 +328,13 @@ function HistoryModal({
                   <span className="meal-type">{m.meal_type}</span>
                   <span className="food-name">{m.food_name}</span>
                   <span className="calories">{m.calories.toFixed(0)} kcal</span>
+                  <button
+                    className="delete-btn"
+                    onClick={() => onDeleteMeal(m.id)}
+                    title="删除此记录"
+                  >
+                    ×
+                  </button>
                 </li>
               ))}
             </ul>
@@ -322,6 +354,13 @@ function HistoryModal({
                 <li key={e.id}>
                   <span className="exercise-type">{e.exercise_type}</span>
                   <span className="duration">{e.duration_min} 分钟</span>
+                  <button
+                    className="delete-btn"
+                    onClick={() => onDeleteExercise(e.id)}
+                    title="删除此记录"
+                  >
+                    ×
+                  </button>
                 </li>
               ))}
             </ul>
@@ -337,20 +376,16 @@ function HistoryModal({
 function RecipeModal({
   recipe,
   loading,
-  saved,
   onClose,
   onRefresh,
-  onSave,
   onExportImage,
   onExportPDF,
   recipeRef,
 }: {
   recipe: string;
   loading: boolean;
-  saved: boolean;
   onClose: () => void;
   onRefresh: () => void;
-  onSave: () => void;
   onExportImage: () => void;
   onExportPDF: () => void;
   recipeRef: React.RefObject<HTMLDivElement | null>;
@@ -358,7 +393,17 @@ function RecipeModal({
   return (
     <div className="recipe-modal-overlay" onClick={onClose}>
       <div className="recipe-card" onClick={(e) => e.stopPropagation()}>
-        <h2>🍽️ 今日食谱推荐</h2>
+        <div className="recipe-header">
+          <h2>🍽️ 今日食谱推荐</h2>
+          <div className="recipe-export-btns">
+            <button className="btn-icon" onClick={onExportImage} title="保存为图片">
+              🖼️
+            </button>
+            <button className="btn-icon" onClick={onExportPDF} title="保存为PDF">
+              📄
+            </button>
+          </div>
+        </div>
         {loading ? (
           <div className="loading-dots">
             <span /><span /><span />
@@ -369,30 +414,243 @@ function RecipeModal({
           </div>
         )}
         <div className="recipe-actions">
-          <div className="recipe-actions-left">
-            <button className="btn-icon" onClick={onExportImage} title="导出图片">
-              🖼️
-            </button>
-            <button className="btn-icon" onClick={onExportPDF} title="导出PDF">
-              📄
-            </button>
+          <button className="btn-secondary" onClick={onRefresh}>
+            🔄 换一套
+          </button>
+          <button className="btn-primary" onClick={onClose}>
+            👍 好的
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 营养进度 Modal (移动端)
+function NutritionModal({
+  nutrition,
+  onClose,
+}: {
+  nutrition: NutritionSummary | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="recipe-modal-overlay" onClick={onClose}>
+      <div className="recipe-card nutrition-modal-card" onClick={(e) => e.stopPropagation()}>
+        <h2>📊 今日营养进度</h2>
+        {nutrition && (
+          <>
+            <div className="nutrition-bars">
+              <NutritionBar
+                name="🔥 热量"
+                current={nutrition.total_calories}
+                target={nutrition.targets?.calories || 1800}
+                percentage={nutrition.percentages?.calories || 0}
+                unit="kcal"
+              />
+              <NutritionBar
+                name="🫒 脂肪"
+                current={nutrition.total_fat}
+                target={nutrition.targets?.fat || 30}
+                percentage={nutrition.percentages?.fat || 0}
+                unit="g"
+                isFat={true}
+              />
+              <NutritionBar
+                name="🍚 碳水"
+                current={nutrition.total_carbs}
+                target={nutrition.targets?.carbs || 200}
+                percentage={nutrition.percentages?.carbs || 0}
+                unit="g"
+              />
+              <NutritionBar
+                name="🥩 蛋白质"
+                current={nutrition.total_protein}
+                target={nutrition.targets?.protein || 60}
+                percentage={nutrition.percentages?.protein || 0}
+                unit="g"
+              />
+              <NutritionBar
+                name="🌾 膳食纤维"
+                current={nutrition.total_fiber}
+                target={nutrition.targets?.fiber || 25}
+                percentage={nutrition.percentages?.fiber || 0}
+                unit="g"
+              />
+            </div>
+
+            {nutrition.warnings && nutrition.warnings.length > 0 && (
+              <div className="nutrition-warnings">
+                {nutrition.warnings.map((w, i) => (
+                  <div
+                    key={i}
+                    className={`warning-item ${w.includes("超标") ? "danger" : ""}`}
+                  >
+                    {w}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        <button className="close-btn" onClick={onClose}>关闭</button>
+      </div>
+    </div>
+  );
+}
+
+// 食物选项推荐 Modal (只读)
+function FoodOptionsModal({
+  categories,
+  onClose,
+  onStartRecord,
+}: {
+  categories: FoodCategory[];
+  onClose: () => void;
+  onStartRecord: () => void;
+}) {
+  return (
+    <div className="recipe-modal-overlay" onClick={onClose}>
+      <div className="recipe-card food-options-card" onClick={(e) => e.stopPropagation()}>
+        <h2>📝 推荐食物选项</h2>
+        <p className="food-options-hint">以下食物适合您的健康状况，仅供参考</p>
+
+        <div className="food-categories">
+          {categories.map((cat, idx) => (
+            <div key={idx} className="food-category">
+              <h3>{cat.emoji} {cat.name}</h3>
+              <div className="food-grid">
+                {cat.foods.map((food, fidx) => (
+                  <div key={fidx} className="food-option-card">
+                    <div className="food-name">{food.name}</div>
+                    <div className="food-nutrition">
+                      <span>{food.calories.toFixed(0)} kcal</span>
+                      <span>脂肪 {food.fat.toFixed(1)}g</span>
+                    </div>
+                    <div className="food-portion">{food.portion_default}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="food-options-actions">
+          <button className="btn-secondary" onClick={onClose}>关闭</button>
+          <button className="btn-primary" onClick={onStartRecord}>📝 开始记录</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 快捷记录 Modal (可打钩选择)
+function QuickRecordModal({
+  categories,
+  onClose,
+  onSubmit,
+}: {
+  categories: FoodCategory[];
+  onClose: () => void;
+  onSubmit: (mealType: string, foods: SelectedFood[]) => void;
+}) {
+  const [mealType, setMealType] = useState("午餐");
+  const [selectedFoods, setSelectedFoods] = useState<SelectedFood[]>([]);
+
+  const mealTypes = ["早餐", "午餐", "晚餐", "加餐"];
+
+  const toggleFood = (food: FoodOption) => {
+    setSelectedFoods((prev) => {
+      const exists = prev.find((f) => f.name === food.name);
+      if (exists) {
+        return prev.filter((f) => f.name !== food.name);
+      }
+      return [
+        ...prev,
+        {
+          name: food.name,
+          portion: food.portion_default,
+          calories: food.calories,
+          fat: food.fat,
+          carbs: food.carbs,
+          protein: food.protein,
+        },
+      ];
+    });
+  };
+
+  const isSelected = (name: string) => selectedFoods.some((f) => f.name === name);
+
+  const totalCalories = selectedFoods.reduce((sum, f) => sum + f.calories, 0);
+  const totalFat = selectedFoods.reduce((sum, f) => sum + f.fat, 0);
+
+  const fatWarning = totalFat > 10;
+
+  const handleSubmit = () => {
+    if (selectedFoods.length > 0) {
+      onSubmit(mealType, selectedFoods);
+    }
+  };
+
+  return (
+    <div className="recipe-modal-overlay" onClick={onClose}>
+      <div className="recipe-card quick-record-card" onClick={(e) => e.stopPropagation()}>
+        <h2>📝 快捷记录</h2>
+
+        {/* 餐次选择 */}
+        <div className="meal-type-selector">
+          {mealTypes.map((t) => (
             <button
-              className={`btn-icon ${saved ? "saved" : ""}`}
-              onClick={onSave}
-              disabled={saved}
-              title={saved ? "已保存" : "保存"}
+              key={t}
+              className={`meal-type-btn ${mealType === t ? "active" : ""}`}
+              onClick={() => setMealType(t)}
             >
-              {saved ? "✅" : "💾"}
+              {t}
             </button>
-          </div>
-          <div className="recipe-actions-right">
-            <button className="btn-secondary" onClick={onRefresh}>
-              🔄 换一套
-            </button>
-            <button className="btn-primary" onClick={onClose}>
-              👍 好的
-            </button>
-          </div>
+          ))}
+        </div>
+
+        {/* 食物选择 */}
+        <div className="food-categories selectable">
+          {categories.map((cat, idx) => (
+            <div key={idx} className="food-category">
+              <h3>{cat.emoji} {cat.name}</h3>
+              <div className="food-grid">
+                {cat.foods.map((food, fidx) => (
+                  <div
+                    key={fidx}
+                    className={`food-option-card ${isSelected(food.name) ? "selected" : ""}`}
+                    onClick={() => toggleFood(food)}
+                  >
+                    <div className="food-checkbox">{isSelected(food.name) ? "☑" : "☐"}</div>
+                    <div className="food-name">{food.name}</div>
+                    <div className="food-nutrition">
+                      <span>{food.calories.toFixed(0)} kcal</span>
+                      <span>脂肪 {food.fat.toFixed(1)}g</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 预估营养 */}
+        <div className={`nutrition-preview ${fatWarning ? "fat-warning" : ""}`}>
+          <span>📊 预估: {totalCalories.toFixed(0)} kcal</span>
+          <span>| 脂肪 {totalFat.toFixed(1)}g</span>
+          {fatWarning && <span className="warning-text"> ⚠️ 脂肪较高</span>}
+        </div>
+
+        <div className="food-options-actions">
+          <button className="btn-secondary" onClick={onClose}>取消</button>
+          <button
+            className="btn-primary"
+            onClick={handleSubmit}
+            disabled={selectedFoods.length === 0}
+          >
+            ✅ 记录 {selectedFoods.length} 项
+          </button>
         </div>
       </div>
     </div>
@@ -411,13 +669,18 @@ export default function Home() {
   const [showRecipe, setShowRecipe] = useState(false);
   const [recipeText, setRecipeText] = useState("");
   const [recipeLoading, setRecipeLoading] = useState(false);
-  const [recipeSaved, setRecipeSaved] = useState(false);
 
   // 新增状态
   const [toast, setToast] = useState<{ message: string; type: "success" | "warning" | "error" } | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [todayMeals, setTodayMeals] = useState<MealRecord[]>([]);
   const [todayExercises, setTodayExercises] = useState<ExerciseRecord[]>([]);
+  const [showNutrition, setShowNutrition] = useState(false);
+
+  // 食物选项相关状态
+  const [showFoodOptions, setShowFoodOptions] = useState(false);
+  const [showQuickRecord, setShowQuickRecord] = useState(false);
+  const [foodCategories, setFoodCategories] = useState<FoodCategory[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -511,8 +774,16 @@ export default function Home() {
           }
           return updated;
         });
-        if (data.has_recording && data.nutrition_summary) {
-          setNutrition(data.nutrition_summary);
+        if (data.has_recording) {
+          // 刷新营养数据
+          if (data.nutrition_summary) {
+            setNutrition(data.nutrition_summary);
+          }
+          // 刷新 meals 列表（解决删除后面板不更新的问题）
+          fetch(`${API_BASE}/api/meals/today`)
+            .then((res) => res.json())
+            .then((data) => setTodayMeals(data.meals || []))
+            .catch(() => {});
           // 显示 Toast 通知
           if (data.records && data.records.length > 0) {
             const record = data.records[0];
@@ -550,26 +821,13 @@ export default function Home() {
   const loadRecipe = async (forceNew: boolean = false) => {
     setShowRecipe(true);
     setRecipeLoading(true);
-    setRecipeSaved(false);
     try {
       const data = await apiRecipe(forceNew ? "new" : "");
       setRecipeText(data.recipe);
-      setRecipeSaved(data.saved || false);
     } catch {
       setRecipeText("食谱生成失败，请检查后端服务。");
     } finally {
       setRecipeLoading(false);
-    }
-  };
-
-  // 保存食谱
-  const saveRecipeHandler = async () => {
-    if (!recipeText || recipeSaved) return;
-    try {
-      await apiSaveRecipe(recipeText, "今日食谱");
-      setRecipeSaved(true);
-    } catch {
-      alert("保存失败，请重试");
     }
   };
 
@@ -584,6 +842,78 @@ export default function Home() {
       setShowHistory(true);
     } catch {
       setToast({ message: "加载历史记录失败", type: "error" });
+    }
+  };
+
+  // 删除饮食记录
+  const handleDeleteMeal = async (mealId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/meal/${mealId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setTodayMeals((prev) => prev.filter((m) => m.id !== mealId));
+        setToast({ message: "已删除记录", type: "success" });
+        // 刷新营养数据
+        loadNutrition();
+      } else {
+        setToast({ message: "删除失败", type: "error" });
+      }
+    } catch {
+      setToast({ message: "删除失败", type: "error" });
+    }
+  };
+
+  // 删除运动记录
+  const handleDeleteExercise = async (exerciseId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/exercise/${exerciseId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setTodayExercises((prev) => prev.filter((e) => e.id !== exerciseId));
+        setToast({ message: "已删除记录", type: "success" });
+      } else {
+        setToast({ message: "删除失败", type: "error" });
+      }
+    } catch {
+      setToast({ message: "删除失败", type: "error" });
+    }
+  };
+
+  // 加载食物选项
+  const loadFoodOptions = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/food-options`);
+      const data: FoodOptionsResponse = await res.json();
+      setFoodCategories(data.categories);
+      setShowFoodOptions(true);
+    } catch {
+      setToast({ message: "加载食物选项失败", type: "error" });
+    }
+  };
+
+  // 快捷记录提交
+  const submitQuickRecord = async (mealType: string, foods: SelectedFood[]) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/quick-record`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meal_type: mealType,
+          foods: foods.map((f) => ({ name: f.name, portion: f.portion })),
+        }),
+      });
+      const data = await res.json();
+      if (data.recorded) {
+        setShowQuickRecord(false);
+        setShowFoodOptions(false);
+        setToast({ message: `已记录 ${foods.length} 项食物`, type: "success" });
+        // 刷新营养数据
+        loadNutrition();
+      }
+    } catch {
+      setToast({ message: "记录失败", type: "error" });
     }
   };
 
@@ -624,16 +954,16 @@ export default function Home() {
     <div className="app-container">
       {/* Header */}
       <div className="app-header">
-        <div>
-          <h1>🥗 EatSmart 健康管家</h1>
+        <div className="header-brand">
+          <h1>🥗 EatSmart</h1>
           <div className="subtitle">糖尿病 + 胰腺炎康复期 · AI 饮食管理</div>
         </div>
         <div className="header-actions">
           <button className="header-btn" onClick={loadHistory}>
             📋 记录
           </button>
-          <button className="header-btn" onClick={() => loadRecipe()}>
-            🍽️ 食谱
+          <button className="header-btn" onClick={loadFoodOptions}>
+            📝 推荐
           </button>
         </div>
       </div>
@@ -657,9 +987,15 @@ export default function Home() {
                 <div className="quick-actions">
                   <button
                     className="quick-action-btn"
+                    onClick={() => { loadFoodOptions(); }}
+                  >
+                    📝 快捷记录
+                  </button>
+                  <button
+                    className="quick-action-btn"
                     onClick={() => quickAction("我今天中午吃了一碗面条和一个水煮蛋")}
                   >
-                    📝 记录饮食
+                    💬 对话记录
                   </button>
                   <button
                     className="quick-action-btn"
@@ -672,12 +1008,6 @@ export default function Home() {
                     onClick={() => quickAction("今天散步了30分钟")}
                   >
                     🏃 记录运动
-                  </button>
-                  <button
-                    className="quick-action-btn"
-                    onClick={() => quickAction("今天空腹血糖6.5")}
-                  >
-                    💉 记录血糖
                   </button>
                   <button className="quick-action-btn" onClick={() => loadRecipe()}>
                     🍽️ 推荐食谱
@@ -737,8 +1067,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Nutrition Side Panel */}
-        <div className={`side-panel ${panelCollapsed ? "collapsed" : ""}`}>
+        {/* Nutrition Side Panel - 桌面端显示 */}
+        <div className={`side-panel desktop-only ${panelCollapsed ? "collapsed" : ""}`}>
           <div
             className="panel-header"
             onClick={() => setPanelCollapsed(!panelCollapsed)}
@@ -813,10 +1143,8 @@ export default function Home() {
         <RecipeModal
           recipe={recipeText}
           loading={recipeLoading}
-          saved={recipeSaved}
           onClose={() => setShowRecipe(false)}
           onRefresh={() => loadRecipe(true)}
-          onSave={saveRecipeHandler}
           onExportImage={exportImageHandler}
           onExportPDF={exportPDFHandler}
           recipeRef={recipeContentRef}
@@ -829,8 +1157,46 @@ export default function Home() {
           meals={todayMeals}
           exercises={todayExercises}
           onClose={() => setShowHistory(false)}
+          onDeleteMeal={handleDeleteMeal}
+          onDeleteExercise={handleDeleteExercise}
         />
       )}
+
+      {/* Nutrition Modal - 移动端 */}
+      {showNutrition && (
+        <NutritionModal
+          nutrition={nutrition}
+          onClose={() => setShowNutrition(false)}
+        />
+      )}
+
+      {/* Food Options Modal */}
+      {showFoodOptions && foodCategories.length > 0 && !showQuickRecord && (
+        <FoodOptionsModal
+          categories={foodCategories}
+          onClose={() => setShowFoodOptions(false)}
+          onStartRecord={() => setShowQuickRecord(true)}
+        />
+      )}
+
+      {/* Quick Record Modal */}
+      {showQuickRecord && foodCategories.length > 0 && (
+        <QuickRecordModal
+          categories={foodCategories}
+          onClose={() => setShowQuickRecord(false)}
+          onSubmit={submitQuickRecord}
+        />
+      )}
+
+      {/* Floating Action Button - 移动端营养进度按钮 */}
+      <button
+        className="fab-nutrition mobile-only"
+        onClick={() => setShowNutrition(true)}
+        title="查看营养进度"
+      >
+        <span className="fab-icon">📊</span>
+        <span className="fab-label">进度</span>
+      </button>
 
       {/* Toast Notification */}
       {toast && (
