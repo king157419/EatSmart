@@ -885,11 +885,19 @@ export default function Home() {
   const loadFoodOptions = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/food-options`);
+      if (!res.ok) {
+        throw new Error(`API返回 ${res.status}`);
+      }
       const data: FoodOptionsResponse = await res.json();
-      setFoodCategories(data.categories);
-      setShowFoodOptions(true);
-    } catch {
-      setToast({ message: "加载食物选项失败", type: "error" });
+      if (data.categories && data.categories.length > 0) {
+        setFoodCategories(data.categories);
+        setShowFoodOptions(true);
+      } else {
+        setToast({ message: "暂无食物选项数据", type: "warning" });
+      }
+    } catch (error) {
+      console.error("加载食物选项失败:", error);
+      setToast({ message: "加载食物选项失败，请检查后端服务", type: "error" });
     }
   };
 
@@ -1171,7 +1179,7 @@ export default function Home() {
       )}
 
       {/* Food Options Modal */}
-      {showFoodOptions && foodCategories.length > 0 && !showQuickRecord && (
+      {showFoodOptions && foodCategories && foodCategories.length > 0 && !showQuickRecord && (
         <FoodOptionsModal
           categories={foodCategories}
           onClose={() => setShowFoodOptions(false)}
@@ -1180,7 +1188,7 @@ export default function Home() {
       )}
 
       {/* Quick Record Modal */}
-      {showQuickRecord && foodCategories.length > 0 && (
+      {showQuickRecord && foodCategories && foodCategories.length > 0 && (
         <QuickRecordModal
           categories={foodCategories}
           onClose={() => setShowQuickRecord(false)}
