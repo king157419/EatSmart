@@ -66,8 +66,22 @@ RECORD_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "delete_meal_by_name",
+            "description": "删除包含指定食物的记录。当用户说删掉XX（指定食物名）时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "food_name": {"type": "string", "description": "食物名称或关键词"}
+                },
+                "required": ["food_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delete_last_meal",
-            "description": "删除最近一条饮食记录，当用户说删掉/撤销/取消刚才的记录时调用",
+            "description": "删除最近一条饮食记录，当用户说删掉刚才的/最后一条记录（未指定食物）时调用",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -86,27 +100,66 @@ RECORD_TOOLS = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_last_blood_sugar",
+            "description": "删除最近一条血糖记录，当用户说血糖记错了时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
     }
 ]
 
 
 RECORD_SYSTEM_PROMPT = """你是一个智能健康数据助手。分析用户消息，执行相应操作。
 
-## 记录规则
-- 用户提到"吃了"、"喝了"某种食物 → 调用 record_meal
-- 用户提到运动、锻炼 → 调用 record_exercise
+## 记录规则（重要！必须严格执行）
+- 用户提到吃、吃了、喝了、品尝、食用任何食物 → 必须调用 record_meal
+- 食物包括：米饭、面条、鱼、肉、蔬菜、水果、饮料、零食等所有可食用物品
+- 用户提到运动、锻炼、跑步、散步、游泳等 → 调用 record_exercise
 - 用户提到血糖数值 → 调用 record_blood_sugar
 
-## 删除规则
-- 用户说"删掉"、"撤销"、"取消"、"不对"、"记错了" → 调用对应的删除函数
-- 用户说"刚才记的不对" → 删除最近一条记录
+## 份量处理规则（非常重要！）
+- 如果用户明确说了份量（如"一碗"、"100克"、"半份"），使用用户说的份量
+- 如果用户没说份量，根据食物类型使用合理默认值：
+  - 米饭/面条/粥 → "一碗"
+  - 苹果/香蕉/鸡蛋 → "一个"
+  - 肉/鱼/蔬菜（菜品）→ "一份"
+- 特殊情况："一条鱼"、"一头猪" 这种显然不是一餐的量，使用 "一份" 并让系统提醒用户
+- 不要猜测克数，只使用常见份量描述
 
-## 示例
+## 关键触发词（看到这些词必须记录）
+- 食物触发词：吃了、吃、喝了、喝、吃了、尝了、点了、买了...吃的
+- 数量词：一个、一碗、一杯、一份、一块、少量、一些、半碗、半个
+
+## 删除规则（重要！严格按规则选择删除函数）
+- 用户说"删掉XX"、"把XX删掉"、"去掉XX"（XX是具体食物名）→ delete_meal_by_name(food_name="XX")
+- 用户说"删掉刚才的"、"删掉最后一条"、"撤销记录"（未指定食物）→ delete_last_meal()
+- 用户说"血糖记错了"、"删掉血糖"、"撤销血糖" → delete_last_blood_sugar()
+- 用户说"运动记错了"、"删掉运动" → delete_last_exercise()
+
+## 删除示例（必须严格遵守）
+- "把刚才记的苹果删掉" → delete_meal_by_name(food_name="苹果")
+- "删掉鱼" → delete_meal_by_name(food_name="鱼")
+- "把粥去掉" → delete_meal_by_name(food_name="粥")
+- "删掉刚才的记录" → delete_last_meal()
+- "撤销刚才记的" → delete_last_meal()
+- "血糖记错了" → delete_last_blood_sugar()
+- "运动删掉" → delete_last_exercise()
+
+## 记录示例
 - "我中午吃了一碗米饭" → record_meal(food="米饭", meal_type="午餐", portion="一碗")
+- "吃了一条鱼" → record_meal(food="鱼", meal_type="加餐", portion="一份")  # 注意："一条鱼"太大了，用"一份"
+- "吃了点三文鱼" → record_meal(food="三文鱼", meal_type="加餐", portion="一份")
+- "吃了100克三文鱼" → record_meal(food="三文鱼", meal_type="加餐", portion="100克")
+- "刚吃了苹果" → record_meal(food="苹果", meal_type="加餐", portion="一个")
 - "刚跑了30分钟" → record_exercise(type="跑步", duration_min=30)
 - "血糖7.5" → record_blood_sugar(value=7.5)
-- "删掉刚才的记录" → delete_last_meal()
-- "那个记错了，撤销" → delete_last_meal()
 - "你好" → 不调用任何函数
 
 注意：如果用户消息不包含健康相关信息，不要调用任何函数，直接回复。"""
@@ -232,6 +285,21 @@ async def process_record(user_message: str) -> dict:
                 record_info["message"] = "已删除最近一条运动记录"
             else:
                 record_info["message"] = "没有找到可删除的运动记录"
+
+        elif fn_name == "delete_last_blood_sugar":
+            deleted = await db.delete_last_blood_sugar(today)
+            if deleted:
+                record_info["message"] = "已删除最近一条血糖记录"
+            else:
+                record_info["message"] = "没有找到可删除的血糖记录"
+
+        elif fn_name == "delete_meal_by_name":
+            food_name = args.get("food_name", "")
+            deleted, deleted_food = await db.delete_meal_by_name(food_name, today)
+            if deleted:
+                record_info["message"] = f"已删除: {deleted_food}"
+            else:
+                record_info["message"] = f"没有找到包含「{food_name}」的记录"
 
         results["records"].append(record_info)
 

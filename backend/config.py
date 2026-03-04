@@ -37,5 +37,11 @@ class Config:
     PORT: int = int(os.getenv("PORT", "8000"))
     CORS_ORIGINS: list[str] = ["*"]  # 生产环境要限制
 
+    # 管理员密码
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
+
 
 config = Config()
+
+# 导出常用配置
+ADMIN_PASSWORD = config.ADMIN_PASSWORD

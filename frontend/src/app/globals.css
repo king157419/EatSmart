@@ -1797,6 +1797,507 @@ body::before {
   cursor: pointer;
 }
 
+/* ===========================
+   Mobile Optimizations
+   =========================== */
+
+/* 移动端按钮最小触摸区域 44x44px */
+@media (max-width: 768px) {
+  .header-btn,
+  .quick-action-btn,
+  .send-btn,
+  .delete-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  /* 增加按钮间距 */
+  .header-actions {
+    gap: 12px;
+  }
+
+  .quick-actions {
+    gap: 12px;
+  }
+
+  /* 食物卡片单列显示 */
+  .food-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .food-option-card {
+    min-height: 80px;
+    padding: 16px;
+    font-size: 16px;
+  }
+}
+
+/* 平板双列 */
+@media (min-width: 480px) and (max-width: 768px) {
+  .food-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 左滑删除动画 */
+.swipeable-item {
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.swipeable-item.swiping {
+  transform: translateX(-80px);
+}
+
+.swipeable-item .delete-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ===========================
+   Chat History Modal
+   =========================== */
+
+.chat-history-card {
+  max-width: 900px;
+  max-height: 85vh;
+  width: 90vw;
+}
+
+.chat-history-container {
+  display: flex;
+  gap: var(--space-md);
+  height: 60vh;
+  max-height: 500px;
+}
+
+.session-list {
+  flex: 0 0 280px;
+  border-right: 1px solid var(--border-light);
+  padding-right: var(--space-md);
+  overflow-y: auto;
+}
+
+.session-group {
+  margin-bottom: var(--space-lg);
+}
+
+.session-date-header {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.session-item {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: var(--space-xs);
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.session-item:hover {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+}
+
+.session-item.active {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+}
+
+.session-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.session-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.delete-btn-small {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.session-item:hover .delete-btn-small {
+  opacity: 1;
+}
+
+.delete-btn-small:hover {
+  color: var(--danger);
+}
+
+.message-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: var(--space-sm);
+}
+
+.history-message {
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+}
+
+.history-message.user {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+}
+
+.message-role {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.message-content {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.message-sources {
+  margin-top: var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.load-session-btn {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-session-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.error-hint {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .chat-history-card {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .chat-history-container {
+    flex-direction: column;
+    height: auto;
+    max-height: 70vh;
+  }
+
+  .session-list {
+    flex: 0 0 auto;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+    padding-right: 0;
+    padding-bottom: var(--space-md);
+  }
+
+  .message-detail {
+    max-height: 400px;
+  }
+}
+
+/* ===========================
+   Admin Modals
+   =========================== */
+
+.admin-password-card {
+  max-width: 400px;
+}
+
+.admin-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+
+.admin-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.admin-password-input {
+  padding: var(--space-md);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.admin-password-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.admin-password-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.admin-verify-btn,
+.admin-cancel-btn {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-verify-btn {
+  background: var(--primary);
+  color: white;
+}
+
+.admin-verify-btn:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.admin-verify-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-cancel-btn {
+  background: var(--bg-warm);
+  color: var(--text);
+}
+
+.admin-cancel-btn:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.admin-panel-card {
+  max-width: 700px;
+}
+
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+}
+
+.admin-stat-card {
+  background: var(--primary-bg);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-xs);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.admin-actions {
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-lg);
+}
+
+.admin-actions h3 {
+  font-size: 1rem;
+  margin-bottom: var(--space-md);
+  color: var(--text);
+}
+
+.admin-action-btn {
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--bg-warm);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: var(--space-sm);
+  text-align: left;
+}
+
+.admin-action-btn:hover:not(:disabled) {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+  transform: translateX(4px);
+}
+
+.admin-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===========================
+   Nutrition Trends
+   =========================== */
+
+.nutrition-trends-section {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-light);
+}
+
+.trends-toggle-btn {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--primary-bg);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-sm);
+  color: var(--primary-dark);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trends-toggle-btn:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.trends-content {
+  margin-top: var(--space-md);
+}
+
+.trends-controls {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.trend-period-btn {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-warm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trend-period-btn:hover {
+  border-color: var(--primary);
+}
+
+.trend-period-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.trends-loading,
+.trends-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: var(--space-lg);
+}
+
+.nutrition-chart {
+  margin-bottom: var(--space-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.trends-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: var(--bg-warm);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.stat-item .stat-label {
+  color: var(--text-muted);
+}
+
+.stat-item .stat-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stat-item.danger .stat-value {
+  color: var(--danger);
+}
+
+
 .food-categories.selectable .food-option-card.selected {
   border-color: var(--primary);
   background: var(--primary-bg);

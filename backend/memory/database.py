@@ -116,6 +116,9 @@ async def init_db():
                 (1800, 30, 200, 60, 25)
             )
         await db.commit()
+
+        # 运行迁移：添加对话历史表
+        await migrate_add_chat_tables()
     finally:
         await db.close()
 
@@ -658,5 +661,251 @@ async def get_today_records():
             "exercises": exercises,
             "blood_sugars": blood_sugars
         }
+    finally:
+        await db.close()
+
+
+# ============================================================
+# 对话历史记录
+# ============================================================
+
+async def migrate_add_chat_tables():
+    """添加对话历史表（迁移函数）"""
+    db = await get_db()
+    try:
+        # 检查表是否存在
+        cursor = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='chat_sessions'"
+        )
+        if await cursor.fetchone():
+            return  # 表已存在，跳过迁移
+
+        # 创建会话表
+        await db.execute("""
+            CREATE TABLE chat_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_date DATE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                title TEXT,
+                message_count INTEGER DEFAULT 0
+            )
+        """)
+
+        # 创建消息表
+        await db.execute("""
+            CREATE TABLE chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                sources TEXT,
+                has_recording BOOLEAN DEFAULT 0,
+                records TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+            )
+        """)
+
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def create_chat_session(session_date: str, title: str = None) -> int:
+    """创建新会话"""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "INSERT INTO chat_sessions (session_date, title) VALUES (?, ?)",
+            (session_date, title or "新对话")
+        )
+        await db.commit()
+        return cursor.lastrowid
+    finally:
+        await db.close()
+
+
+async def save_chat_message(session_id: int, role: str, content: str,
+                            sources: list = None, has_recording: bool = False,
+                            records: list = None):
+    """保存单条消息"""
+    import json
+    db = await get_db()
+    try:
+        sources_json = json.dumps(sources, ensure_ascii=False) if sources else None
+        records_json = json.dumps(records, ensure_ascii=False) if records else None
+
+        await db.execute(
+            """INSERT INTO chat_messages (session_id, role, content, sources, has_recording, records)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (session_id, role, content, sources_json, 1 if has_recording else 0, records_json)
+        )
+
+        # 更新会话消息计数
+        await db.execute(
+            "UPDATE chat_sessions SET message_count = message_count + 1 WHERE id = ?",
+            (session_id,)
+        )
+
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def get_chat_sessions(limit: int = 30) -> list[dict]:
+    """获取会话列表"""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT id, session_date, created_at, title, message_count
+               FROM chat_sessions
+               ORDER BY session_date DESC, created_at DESC
+               LIMIT ?""",
+            (limit,)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        await db.close()
+
+
+async def get_chat_messages(session_id: int) -> list[dict]:
+    """获取会话的所有消息"""
+    import json
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT id, session_id, role, content, sources, has_recording, records, created_at
+               FROM chat_messages
+               WHERE session_id = ?
+               ORDER BY created_at""",
+            (session_id,)
+        )
+        rows = await cursor.fetchall()
+        messages = []
+        for row in rows:
+            msg = dict(row)
+            # 解析 JSON 字段
+            if msg['sources']:
+                msg['sources'] = json.loads(msg['sources'])
+            if msg['records']:
+                msg['records'] = json.loads(msg['records'])
+            messages.append(msg)
+        return messages
+    finally:
+        await db.close()
+
+
+async def delete_chat_session(session_id: int):
+    """删除会话及其所有消息"""
+    db = await get_db()
+    try:
+        await db.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+        await db.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+        await db.commit()
+    finally:
+        await db.close()
+
+
+async def get_today_session() -> dict:
+    """获取或创建今日会话"""
+    today = date.today().isoformat()
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT * FROM chat_sessions WHERE session_date = ? ORDER BY created_at DESC LIMIT 1",
+            (today,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            return dict(row)
+        else:
+            # 创建今日会话
+            session_id = await create_chat_session(today, f"{today} 对话")
+            cursor = await db.execute(
+                "SELECT * FROM chat_sessions WHERE id = ?",
+                (session_id,)
+            )
+            row = await cursor.fetchone()
+            return dict(row)
+    finally:
+        await db.close()
+
+
+# ============================================================
+# 营养趋势数据
+# ============================================================
+
+async def get_nutrition_range(start_date: str, end_date: str) -> list[dict]:
+    """获取日期范围内的每日营养数据"""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT
+                meal_date as date,
+                COALESCE(SUM(calories), 0) as calories,
+                COALESCE(SUM(fat), 0) as fat,
+                COALESCE(SUM(carbs), 0) as carbs,
+                COALESCE(SUM(protein), 0) as protein,
+                COALESCE(SUM(fiber), 0) as fiber
+               FROM meals
+               WHERE meal_date BETWEEN ? AND ?
+               GROUP BY meal_date
+               ORDER BY meal_date""",
+            (start_date, end_date)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        await db.close()
+
+
+async def get_nutrition_stats(days: int = 7) -> dict:
+    """获取周期内的统计数据"""
+    today = date.today()
+    start_date = (today - timedelta(days=days-1)).isoformat()
+    end_date = today.isoformat()
+
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT
+                AVG(calories) as avg_calories,
+                AVG(fat) as avg_fat,
+                AVG(carbs) as avg_carbs,
+                AVG(protein) as avg_protein,
+                MAX(fat) as max_fat
+               FROM (
+                   SELECT
+                       meal_date,
+                       SUM(calories) as calories,
+                       SUM(fat) as fat,
+                       SUM(carbs) as carbs,
+                       SUM(protein) as protein
+                   FROM meals
+                   WHERE meal_date BETWEEN ? AND ?
+                   GROUP BY meal_date
+               )""",
+            (start_date, end_date)
+        )
+        row = await cursor.fetchone()
+        stats = dict(row) if row else {}
+
+        # 计算超标天数
+        cursor = await db.execute(
+            """SELECT COUNT(*) as days_over_fat_limit
+               FROM (
+                   SELECT meal_date, SUM(fat) as daily_fat
+                   FROM meals
+                   WHERE meal_date BETWEEN ? AND ?
+                   GROUP BY meal_date
+                   HAVING daily_fat > 30
+               )""",
+            (start_date, end_date)
+        )
+        over_limit = await cursor.fetchone()
+        stats['days_over_fat_limit'] = over_limit[0] if over_limit else 0
+
+        return stats
     finally:
         await db.close()

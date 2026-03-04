@@ -108,8 +108,73 @@
       "name": "History modal",
       "description": "Modal to view today's meal and exercise records",
       "passes": 1
+    },
+    {
+      "id": "F19",
+      "name": "Food options API",
+      "description": "GET /api/food-options returns categorized food recommendations",
+      "passes": 1
+    },
+    {
+      "id": "F20",
+      "name": "Quick record API",
+      "description": "POST /api/quick-record batch records multiple foods with nutrition data",
+      "passes": 1
+    },
+    {
+      "id": "F21",
+      "name": "FoodOptionsModal",
+      "description": "Modal showing categorized food recommendations (read-only)",
+      "passes": 1
+    },
+    {
+      "id": "F22",
+      "name": "QuickRecordModal",
+      "description": "Modal for selecting and batch recording foods with nutrition preview",
+      "passes": 1
+    },
+    {
+      "id": "F23",
+      "name": "Enhanced delete mechanism",
+      "description": "delete_meal_by_name (by food name), delete_last_blood_sugar, improved system prompts",
+      "passes": 1
+    },
+    {
+      "id": "F24",
+      "name": "Frontend code refactoring",
+      "description": "Refactored page.tsx (1219 lines → 306 lines) into modular structure: types, services, hooks, components",
+      "passes": 1,
+      "notes": "Created 20 files: 5 hooks, 13 components, 1 service layer, 1 types file. Build successful, all functionality preserved."
+    },
+    {
+      "id": "F25",
+      "name": "Chat history system",
+      "description": "Backend database (chat_sessions, chat_messages) + localStorage cache + ChatHistoryModal",
+      "passes": 1,
+      "notes": "Auto-saves messages to backend, loads from localStorage on refresh, supports viewing/loading/deleting sessions"
+    },
+    {
+      "id": "F26",
+      "name": "Nutrition trends charts",
+      "description": "7/30-day nutrition trend charts with Recharts, integrated into NutritionPanel",
+      "passes": 1,
+      "notes": "Shows calories/fat/carbs/protein trends, displays stats (avg, max, days over limit)"
+    },
+    {
+      "id": "F27",
+      "name": "Admin management panel",
+      "description": "Password-protected admin console with system stats and knowledge base reload",
+      "passes": 1,
+      "notes": "AdminButton in header, password modal, stats display (meals/exercises/sessions/messages/db size)"
+    },
+    {
+      "id": "F28",
+      "name": "Mobile optimizations",
+      "description": "44x44px touch targets, responsive food grid, swipe-to-delete gestures",
+      "passes": 1,
+      "notes": "Optimized button sizes, single/dual column food cards, left-swipe delete with react-swipeable"
     }
   ],
-  "last_updated": "2026-02-23",
+  "last_updated": "2026-03-04",
   "notes": "passes: 0=pending/investigating, 1=verified working, 2+=needed multiple attempts"
 }

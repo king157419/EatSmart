@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(netstat:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}

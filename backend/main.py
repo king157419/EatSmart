@@ -25,6 +25,11 @@ from memory.database import (
     save_recipe, get_saved_recipes, get_today_recipe, delete_recipe,
     add_meal,
     delete_meal_by_id, delete_exercise_by_id, delete_blood_sugar_by_id,
+    # Chat history
+    create_chat_session, save_chat_message, get_chat_sessions,
+    get_chat_messages, delete_chat_session, get_today_session,
+    # Nutrition trends
+    get_nutrition_range, get_nutrition_stats,
 )
 from agents.chat_agent import chat, generate_recipe, ChatResponse, stream_chat
 from rag.retriever import reload_vectorstore
@@ -105,6 +110,24 @@ class QuickRecordItem(BaseModel):
 class QuickRecordRequest(BaseModel):
     meal_type: str
     foods: list[QuickRecordItem]
+
+
+class AdminVerifyRequest(BaseModel):
+    password: str
+
+
+class ChatSessionCreate(BaseModel):
+    session_date: str
+    title: str = None
+
+
+class ChatMessageSave(BaseModel):
+    session_id: int
+    role: str
+    content: str
+    sources: list = None
+    has_recording: bool = False
+    records: list = None
 
 
 # ============================================================
@@ -443,3 +466,152 @@ async def api_quick_record(request: QuickRecordRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"快捷记录失败: {str(e)}")
+
+
+# ============================================================
+# 对话历史 API
+# ============================================================
+
+@app.post("/api/chat/session")
+async def api_create_chat_session(request: ChatSessionCreate):
+    """创建新会话"""
+    try:
+        session_id = await create_chat_session(request.session_date, request.title)
+        return {"session_id": session_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/sessions")
+async def api_get_chat_sessions(limit: int = 30):
+    """获取会话列表"""
+    try:
+        sessions = await get_chat_sessions(limit)
+        return {"sessions": sessions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/session/{session_id}")
+async def api_get_chat_session(session_id: int):
+    """获取会话详情（所有消息）"""
+    try:
+        messages = await get_chat_messages(session_id)
+        return {"messages": messages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/chat/session/{session_id}")
+async def api_delete_chat_session(session_id: int):
+    """删除会话"""
+    try:
+        await delete_chat_session(session_id)
+        return {"message": "会话已删除"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/message")
+async def api_save_chat_message(request: ChatMessageSave):
+    """保存单条消息"""
+    try:
+        await save_chat_message(
+            session_id=request.session_id,
+            role=request.role,
+            content=request.content,
+            sources=request.sources,
+            has_recording=request.has_recording,
+            records=request.records
+        )
+        return {"message": "消息已保存"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/session/today")
+async def api_get_today_session():
+    """获取今日会话（如果不存在则创建）"""
+    try:
+        session = await get_today_session()
+        return session
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 营养趋势 API
+# ============================================================
+
+@app.get("/api/nutrition/range")
+async def api_nutrition_range(start: str, end: str):
+    """获取日期范围内的营养数据"""
+    try:
+        data = await get_nutrition_range(start, end)
+        return {"data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/nutrition/stats")
+async def api_nutrition_stats(days: int = 7):
+    """获取营养统计数据"""
+    try:
+        stats = await get_nutrition_stats(days)
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 管理员 API
+# ============================================================
+
+@app.post("/api/admin/verify")
+async def api_admin_verify(request: AdminVerifyRequest):
+    """验证管理员密码"""
+    from config import ADMIN_PASSWORD
+    return {"valid": request.password == ADMIN_PASSWORD}
+
+
+@app.get("/api/admin/stats")
+async def api_admin_stats(x_admin_password: str = None):
+    """获取系统统计（需要密码验证）"""
+    from config import ADMIN_PASSWORD
+    if x_admin_password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        import os
+        from memory.database import DB_PATH
+
+        # 获取数据库大小
+        db_size_mb = os.path.getsize(DB_PATH) / (1024 * 1024) if os.path.exists(DB_PATH) else 0
+
+        # 获取记录统计
+        from memory.database import get_db
+        db = await get_db()
+        try:
+            cursor = await db.execute("SELECT COUNT(*) FROM meals")
+            total_meals = (await cursor.fetchone())[0]
+
+            cursor = await db.execute("SELECT COUNT(*) FROM exercises")
+            total_exercises = (await cursor.fetchone())[0]
+
+            cursor = await db.execute("SELECT COUNT(*) FROM chat_sessions")
+            total_sessions = (await cursor.fetchone())[0]
+
+            cursor = await db.execute("SELECT COUNT(*) FROM chat_messages")
+            total_messages = (await cursor.fetchone())[0]
+        finally:
+            await db.close()
+
+        return {
+            "total_meals": total_meals,
+            "total_exercises": total_exercises,
+            "total_sessions": total_sessions,
+            "total_messages": total_messages,
+            "db_size_mb": round(db_size_mb, 2),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
