@@ -1,5 +1,58 @@
 # EatSmart Progress Log
 
+## 2026-03-05 Session 6 - 个性化营养目标计算器
+
+### ✅ 功能完成
+
+**需求**：用户希望根据父亲的身高、体重、年龄等个人信息，定制化调整营养摄入目标。
+
+**实现**：创建了完整的个性化营养计算系统。
+
+### 技术实现
+
+#### 1. 后端营养计算模块 (`backend/utils/nutrition_calculator.py`)
+
+**核心功能**：
+- `calculate_bmr()` - 基础代谢率计算（Mifflin-St Jeor 公式）
+- `calculate_tdee()` - 每日总能量消耗
+- `calculate_nutrition_targets()` - 个性化营养目标
+- `get_bmi()` - BMI 计算和体重状态评估
+
+#### 2. 后端 API 端点
+
+- `POST /api/nutrition/calculate` - 计算营养目标
+- `POST /api/nutrition/apply-calculated` - 计算并应用到数据库
+
+#### 3. 前端计算器页面 (`/calculator`)
+
+- 基本信息输入：体重、身高、年龄、性别
+- 活动水平选择：5个级别
+- 健康状况勾选：糖尿病、胰腺炎
+- 实时计算和一键应用
+
+### 测试结果
+
+**API 测试**：✅ 通过
+- 热量：1785.1 千卡
+- 蛋白质：77.0 克
+- 脂肪：25.0 克（胰腺炎限制）
+- 碳水：250 克
+- BMI：24.2（超重）
+
+**前端测试**：✅ 通过
+- 页面加载正常
+- 计算功能正常
+- 应用功能正常
+
+### Git 提交
+
+```
+cf767e1 - docs: 添加营养计算器使用指南
+d7f3a78 - feat: 添加个性化营养目标计算器
+```
+
+---
+
 ## 2026-03-04 Session 5 - Server Deployment Configuration
 
 ### ✅ Deployment Files Created
