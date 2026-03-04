@@ -96,14 +96,24 @@ pm2 logs
 | F01-F33 | Previous features | ✅ All passing | 1-2 |
 | F34 | Server deployment config | ⏳ Pending server testing | 0 |
 
+### Deployment Files Summary
+
+**Created 3 comprehensive guides**:
+1. `ecosystem.config.js` - PM2 process configuration
+2. `DEPLOYMENT.md` - Detailed deployment guide with troubleshooting
+3. `SERVER_DEPLOYMENT_CHECKLIST.md` - Step-by-step checklist with verification
+
+**All files pushed to GitHub** (commits: df4435d, 00f89d3)
+
 ### Next Steps
 
 **For Server Deployment** (User needs to execute on server):
-1. Push these files to git: `git add ecosystem.config.js DEPLOYMENT.md && git commit && git push`
-2. On server: Follow steps in `DEPLOYMENT.md`
-3. Verify both services start successfully
-4. Test application in browser
-5. Update F34 passes to 1 after verification
+1. ✅ Files pushed to git repository
+2. On server: `cd ~/EatSmart && git pull origin main`
+3. Follow `SERVER_DEPLOYMENT_CHECKLIST.md` step by step
+4. Verify both services start successfully
+5. Test application in browser
+6. Update F34 passes to 1 after verification
 
 **Expected Results**:
 - ✅ Backend running on port 8000
@@ -111,6 +121,19 @@ pm2 logs
 - ✅ PM2 shows both processes as "online"
 - ✅ No errors in logs
 - ✅ Application accessible via browser
+
+**Key Commands for Server**:
+```bash
+# Quick deployment
+cd ~/EatSmart
+git pull origin main
+pm2 stop all && pm2 delete all
+pkill -9 python3
+cd frontend && npm install && npm run build && cd ..
+pm2 start ecosystem.config.js
+pm2 save
+pm2 logs
+```
 
 ---
 
