@@ -31,6 +31,9 @@ export default function RecipeModal({
             <button className="btn-icon" onClick={onExportPDF} title="保存为PDF">
               📄
             </button>
+            <button className="btn-icon" onClick={onClose} title="关闭">
+              ✕
+            </button>
           </div>
         </div>
         {loading ? (

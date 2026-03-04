@@ -38,6 +38,7 @@ export default function AdminPasswordModal({
       <div className="recipe-card admin-password-card" onClick={(e) => e.stopPropagation()}>
         <h2>🔐 管理员验证</h2>
         <p className="admin-hint">请输入管理员密码以访问控制台</p>
+        <p className="admin-description">管理面板功能：查看系统统计、重载知识库、管理数据</p>
 
         <form onSubmit={handleSubmit} className="admin-password-form">
           <input

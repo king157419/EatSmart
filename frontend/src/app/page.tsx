@@ -50,6 +50,7 @@ export default function Home() {
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "warning" | "error" } | null>(null);
 
   // Refs
@@ -218,7 +219,9 @@ export default function Home() {
           <h1>🥗 EatSmart</h1>
           <div className="subtitle">糖尿病 + 胰腺炎康复期 · AI 饮食管理</div>
         </div>
-        <div className="header-actions">
+
+        {/* Desktop: Show all buttons */}
+        <div className="header-actions desktop-only">
           <button className="header-btn" onClick={handleLoadHistory}>
             📋 记录
           </button>
@@ -233,7 +236,45 @@ export default function Home() {
           </button>
           <AdminButton onClick={handleAdminClick} />
         </div>
+
+        {/* Mobile: Hamburger menu */}
+        <button
+          className="hamburger-btn mobile-only"
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          aria-label="菜单"
+        >
+          ☰
+        </button>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {showMobileMenu && (
+        <div className="mobile-menu-overlay" onClick={() => setShowMobileMenu(false)}>
+          <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-menu-header">
+              <h3>菜单</h3>
+              <button className="close-btn" onClick={() => setShowMobileMenu(false)}>✕</button>
+            </div>
+            <div className="mobile-menu-items">
+              <button className="mobile-menu-item" onClick={() => { handleLoadHistory(); setShowMobileMenu(false); }}>
+                📋 记录
+              </button>
+              <button className="mobile-menu-item" onClick={() => { handleLoadFoodOptions(); setShowMobileMenu(false); }}>
+                📝 推荐
+              </button>
+              <button className="mobile-menu-item" onClick={() => { handleLoadRecipe(); setShowMobileMenu(false); }}>
+                🍱 食谱
+              </button>
+              <button className="mobile-menu-item" onClick={() => { setShowChatHistory(true); setShowMobileMenu(false); }}>
+                💬 历史
+              </button>
+              <button className="mobile-menu-item" onClick={() => { handleAdminClick(); setShowMobileMenu(false); }}>
+                ⚙️ 管理
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="main-area">
         {/* Chat Section */}
