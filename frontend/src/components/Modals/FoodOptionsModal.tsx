@@ -14,8 +14,8 @@ export default function FoodOptionsModal({
   return (
     <div className="recipe-modal-overlay" onClick={onClose}>
       <div className="recipe-card food-options-card" onClick={(e) => e.stopPropagation()}>
-        <h2>📝 快捷记录</h2>
-        <p className="food-options-hint">选择食物快速记录，营养数据自动计算</p>
+        <h2>📝 选择食物</h2>
+        <p className="food-options-hint">从食物库选择，快速记录营养数据</p>
 
         <div className="food-categories">
           {categories.map((cat, idx) => (

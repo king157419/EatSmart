@@ -22,7 +22,7 @@ export default function WelcomeScreen({
           className="quick-action-btn"
           onClick={onLoadFoodOptions}
         >
-          📝 快捷记录
+          📝 选择食物
         </button>
         <button
           className="quick-action-btn"

@@ -223,10 +223,10 @@ export default function Home() {
         {/* Desktop: Show all buttons */}
         <div className="header-actions desktop-only">
           <button className="header-btn" onClick={handleLoadHistory}>
-            📋 记录
+            📋 查看记录
           </button>
           <button className="header-btn" onClick={handleLoadFoodOptions}>
-            📝 快捷记录
+            📝 选择食物
           </button>
           <button className="header-btn" onClick={() => handleLoadRecipe()}>
             🍱 食谱
@@ -257,10 +257,10 @@ export default function Home() {
             </div>
             <div className="mobile-menu-items">
               <button className="mobile-menu-item" onClick={() => { handleLoadHistory(); setShowMobileMenu(false); }}>
-                📋 记录
+                📋 查看记录
               </button>
               <button className="mobile-menu-item" onClick={() => { handleLoadFoodOptions(); setShowMobileMenu(false); }}>
-                📝 快捷记录
+                📝 选择食物
               </button>
               <button className="mobile-menu-item" onClick={() => { handleLoadRecipe(); setShowMobileMenu(false); }}>
                 🍱 食谱

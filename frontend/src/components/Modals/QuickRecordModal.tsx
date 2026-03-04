@@ -53,7 +53,7 @@ export default function QuickRecordModal({
   return (
     <div className="recipe-modal-overlay" onClick={onClose}>
       <div className="recipe-card quick-record-card" onClick={(e) => e.stopPropagation()}>
-        <h2>📝 快捷记录</h2>
+        <h2>📝 选择食物</h2>
 
         {/* Meal type selector */}
         <div className="meal-type-selector">
