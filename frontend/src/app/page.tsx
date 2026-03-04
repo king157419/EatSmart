@@ -234,6 +234,9 @@ export default function Home() {
           <button className="header-btn" onClick={() => setShowChatHistory(true)}>
             💬 对话历史
           </button>
+          <button className="header-btn" onClick={() => window.location.href = '/calculator'}>
+            🧮 营养计算
+          </button>
           <AdminButton onClick={handleAdminClick} />
         </div>
 
@@ -267,6 +270,9 @@ export default function Home() {
               </button>
               <button className="mobile-menu-item" onClick={() => { setShowChatHistory(true); setShowMobileMenu(false); }}>
                 💬 对话历史
+              </button>
+              <button className="mobile-menu-item" onClick={() => { window.location.href = '/calculator'; setShowMobileMenu(false); }}>
+                🧮 营养计算
               </button>
               <button className="mobile-menu-item" onClick={() => { handleAdminClick(); setShowMobileMenu(false); }}>
                 ⚙️ 管理

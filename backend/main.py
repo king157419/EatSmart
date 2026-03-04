@@ -34,6 +34,7 @@ from memory.database import (
 from agents.chat_agent import chat, generate_recipe, ChatResponse, stream_chat
 from rag.retriever import reload_vectorstore
 from food_db.food_options import get_food_options, find_food_option, FoodOption
+from utils.nutrition_calculator import calculate_nutrition_targets, get_bmi
 
 
 # ============================================================
@@ -100,6 +101,16 @@ class NutritionTargetUpdate(BaseModel):
     carbs: float | None = None
     protein: float | None = None
     fiber: float | None = None
+
+
+class UserProfile(BaseModel):
+    weight_kg: float
+    height_cm: float
+    age: int
+    gender: str = "male"  # "male" or "female"
+    activity_level: str = "light"  # "sedentary", "light", "moderate", "active", "very_active"
+    has_diabetes: bool = True
+    has_pancreatitis: bool = True
 
 
 class QuickRecordItem(BaseModel):
@@ -357,6 +368,69 @@ async def api_update_targets(targets: NutritionTargetUpdate):
             fiber=targets.fiber,
         )
         return {"message": "营养目标已更新"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/nutrition/calculate")
+async def api_calculate_targets(profile: UserProfile):
+    """根据用户信息计算个性化营养目标"""
+    try:
+        # 计算营养目标
+        targets = calculate_nutrition_targets(
+            weight_kg=profile.weight_kg,
+            height_cm=profile.height_cm,
+            age=profile.age,
+            gender=profile.gender,
+            activity_level=profile.activity_level,
+            has_diabetes=profile.has_diabetes,
+            has_pancreatitis=profile.has_pancreatitis
+        )
+
+        # 计算 BMI
+        bmi_info = get_bmi(profile.weight_kg, profile.height_cm)
+
+        return {
+            "targets": targets,
+            "bmi": bmi_info,
+            "profile": profile.dict()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/nutrition/apply-calculated")
+async def api_apply_calculated_targets(profile: UserProfile):
+    """计算并应用个性化营养目标到数据库"""
+    try:
+        # 计算营养目标
+        targets = calculate_nutrition_targets(
+            weight_kg=profile.weight_kg,
+            height_cm=profile.height_cm,
+            age=profile.age,
+            gender=profile.gender,
+            activity_level=profile.activity_level,
+            has_diabetes=profile.has_diabetes,
+            has_pancreatitis=profile.has_pancreatitis
+        )
+
+        # 更新到数据库
+        await update_nutrition_targets(
+            calories=targets["calories"],
+            fat=targets["fat"],
+            carbs=targets["carbs"],
+            protein=targets["protein"],
+            fiber=targets["fiber"]
+        )
+
+        # 计算 BMI
+        bmi_info = get_bmi(profile.weight_kg, profile.height_cm)
+
+        return {
+            "message": "个性化营养目标已应用",
+            "targets": targets,
+            "bmi": bmi_info
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
