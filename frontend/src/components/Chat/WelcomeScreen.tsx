@@ -43,7 +43,7 @@ export default function WelcomeScreen({
           🏃 记录运动
         </button>
         <button className="quick-action-btn" onClick={onLoadRecipe}>
-          🍽️ 推荐食谱
+          🍱 AI 食谱
         </button>
       </div>
     </div>

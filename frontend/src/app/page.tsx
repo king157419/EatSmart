@@ -226,7 +226,7 @@ export default function Home() {
             📋 记录
           </button>
           <button className="header-btn" onClick={handleLoadFoodOptions}>
-            📝 推荐
+            📝 快捷记录
           </button>
           <button className="header-btn" onClick={() => handleLoadRecipe()}>
             🍱 食谱
@@ -260,7 +260,7 @@ export default function Home() {
                 📋 记录
               </button>
               <button className="mobile-menu-item" onClick={() => { handleLoadFoodOptions(); setShowMobileMenu(false); }}>
-                📝 推荐
+                📝 快捷记录
               </button>
               <button className="mobile-menu-item" onClick={() => { handleLoadRecipe(); setShowMobileMenu(false); }}>
                 🍱 食谱
