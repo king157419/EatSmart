@@ -208,6 +208,13 @@
       "description": "Fixed 'Rendered fewer hooks than expected' error by extracting SwipeableListItem component",
       "passes": 1,
       "notes": "useSwipeable hook moved from map loop to separate component, compliant with React Rules of Hooks"
+    },
+    {
+      "id": "F34",
+      "name": "Server deployment configuration",
+      "description": "PM2 ecosystem config for production deployment with proper port management and process monitoring",
+      "passes": 0,
+      "notes": "Created ecosystem.config.js and DEPLOYMENT.md guide. Needs server-side testing."
     }
   ],
   "last_updated": "2026-03-04",

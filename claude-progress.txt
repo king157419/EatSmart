@@ -1,5 +1,119 @@
 # EatSmart Progress Log
 
+## 2026-03-04 Session 5 - Server Deployment Configuration
+
+### ✅ Deployment Files Created
+
+**Problem**: User encountered multiple errors when deploying to server with PM2:
+1. Backend port 8000 already in use (address already in use error)
+2. Frontend missing dependencies (`react-swipeable`, `recharts`)
+3. Frontend missing production build (`.next` directory not found)
+
+**Solution**: Created comprehensive deployment configuration and guide.
+
+### Files Created
+
+#### 1. `ecosystem.config.js` (PM2 Configuration)
+- **Backend Process**:
+  - Name: `eatsmart-backend`
+  - Command: `uvicorn main:app --host 0.0.0.0 --port 8000`
+  - Interpreter: `python3`
+  - Working directory: `/root/EatSmart/backend`
+  - Logs: `/root/.pm2/logs/eatsmart-backend-*.log`
+  - Auto-restart enabled
+  - Memory limit: 1GB
+
+- **Frontend Process**:
+  - Name: `eatsmart-frontend`
+  - Command: `npm start` (production mode)
+  - Working directory: `/root/EatSmart/frontend`
+  - Port: 3000
+  - Logs: `/root/.pm2/logs/eatsmart-frontend-*.log`
+  - Auto-restart enabled
+  - Memory limit: 1GB
+
+#### 2. `DEPLOYMENT.md` (Deployment Guide)
+- **Problem Diagnosis**: Lists all current errors
+- **Step-by-Step Instructions**:
+  1. Stop all PM2 processes and clear ports
+  2. Pull latest code from git
+  3. Install frontend dependencies (`npm install`)
+  4. Build frontend production bundle (`npm run build`)
+  5. Start services with PM2 config
+  6. Verify services are running
+- **Troubleshooting Section**: Solutions for common issues
+- **Maintenance Commands**: Update and restart procedures
+
+### Deployment Steps for Server
+
+```bash
+# 1. Stop all processes
+pm2 stop all && pm2 delete all
+pkill -9 python3  # If port still occupied
+
+# 2. Pull latest code
+cd ~/EatSmart && git pull origin main
+
+# 3. Install dependencies and build frontend
+cd ~/EatSmart/frontend
+npm install
+npm run build
+
+# 4. Start with PM2
+cd ~/EatSmart
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+
+# 5. Verify
+pm2 status
+pm2 logs
+```
+
+### Key Features
+
+1. **Port Management**: Clear instructions for handling port conflicts
+2. **Dependency Installation**: Ensures `react-swipeable` and `recharts` are installed
+3. **Production Build**: Creates `.next` directory before starting
+4. **Process Monitoring**: PM2 auto-restart on crashes
+5. **Log Management**: Centralized logs with timestamps
+6. **Zero-Downtime Updates**: `pm2 reload` command for updates
+
+### Technical Changes
+
+**Files Created**:
+- `ecosystem.config.js` (40 lines) - PM2 configuration
+- `DEPLOYMENT.md` (150+ lines) - Deployment guide
+
+**Files Modified**:
+- `features.json` - Added F34 (Server deployment configuration)
+- `claude-progress.txt` - This entry
+
+### Feature Status (34 total, 33 passing, 1 pending)
+
+| ID | Feature | Status | Passes |
+|----|---------|--------|--------|
+| F01-F33 | Previous features | ✅ All passing | 1-2 |
+| F34 | Server deployment config | ⏳ Pending server testing | 0 |
+
+### Next Steps
+
+**For Server Deployment** (User needs to execute on server):
+1. Push these files to git: `git add ecosystem.config.js DEPLOYMENT.md && git commit && git push`
+2. On server: Follow steps in `DEPLOYMENT.md`
+3. Verify both services start successfully
+4. Test application in browser
+5. Update F34 passes to 1 after verification
+
+**Expected Results**:
+- ✅ Backend running on port 8000
+- ✅ Frontend running on port 3000
+- ✅ PM2 shows both processes as "online"
+- ✅ No errors in logs
+- ✅ Application accessible via browser
+
+---
+
 ## 2026-03-04 Session 4 - React Hooks Error Fix
 
 ### ✅ Critical Bug Fixed
