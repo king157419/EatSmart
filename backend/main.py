@@ -7,7 +7,7 @@ import sys
 from datetime import date
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -492,6 +492,16 @@ async def api_get_chat_sessions(limit: int = 30):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/chat/session/today")
+async def api_get_today_session():
+    """获取今日会话（如果不存在则创建）"""
+    try:
+        session = await get_today_session()
+        return session
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/chat/session/{session_id}")
 async def api_get_chat_session(session_id: int):
     """获取会话详情（所有消息）"""
@@ -525,16 +535,6 @@ async def api_save_chat_message(request: ChatMessageSave):
             records=request.records
         )
         return {"message": "消息已保存"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/chat/session/today")
-async def api_get_today_session():
-    """获取今日会话（如果不存在则创建）"""
-    try:
-        session = await get_today_session()
-        return session
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -575,7 +575,7 @@ async def api_admin_verify(request: AdminVerifyRequest):
 
 
 @app.get("/api/admin/stats")
-async def api_admin_stats(x_admin_password: str = None):
+async def api_admin_stats(x_admin_password: str = Header(None, alias="X-Admin-Password")):
     """获取系统统计（需要密码验证）"""
     from config import ADMIN_PASSWORD
     if x_admin_password != ADMIN_PASSWORD:

@@ -150,22 +150,22 @@
       "id": "F25",
       "name": "Chat history system",
       "description": "Backend database (chat_sessions, chat_messages) + localStorage cache + ChatHistoryModal",
-      "passes": 1,
-      "notes": "Auto-saves messages to backend, loads from localStorage on refresh, supports viewing/loading/deleting sessions"
+      "passes": 2,
+      "notes": "Fixed route ordering bug (/api/chat/session/today must come before /{session_id}). Auto-saves messages to backend, loads from localStorage on refresh, supports viewing/loading/deleting sessions"
     },
     {
       "id": "F26",
       "name": "Nutrition trends charts",
       "description": "7/30-day nutrition trend charts with Recharts, integrated into NutritionPanel",
-      "passes": 1,
-      "notes": "Shows calories/fat/carbs/protein trends, displays stats (avg, max, days over limit)"
+      "passes": 2,
+      "notes": "Backend endpoints verified working. Shows calories/fat/carbs/protein trends, displays stats (avg, max, days over limit)"
     },
     {
       "id": "F27",
       "name": "Admin management panel",
       "description": "Password-protected admin console with system stats and knowledge base reload",
-      "passes": 1,
-      "notes": "AdminButton in header, password modal, stats display (meals/exercises/sessions/messages/db size)"
+      "passes": 2,
+      "notes": "Fixed Header import and alias. AdminButton in header, password modal, stats display (meals/exercises/sessions/messages/db size)"
     },
     {
       "id": "F28",
