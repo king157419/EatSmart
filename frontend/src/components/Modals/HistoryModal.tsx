@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { useSwipeable } from "react-swipeable";
 import type { MealRecord, ExerciseRecord } from "../../types";
+import SwipeableListItem from "./SwipeableListItem";
 
 interface HistoryModalProps {
   meals: MealRecord[];
@@ -18,18 +17,6 @@ export default function HistoryModal({
   onDeleteExercise,
 }: HistoryModalProps) {
   const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
-  const [swipedMealId, setSwipedMealId] = useState<number | null>(null);
-  const [swipedExerciseId, setSwipedExerciseId] = useState<number | null>(null);
-
-  const handleMealSwipe = (mealId: number) => {
-    setSwipedMealId(mealId);
-    setTimeout(() => setSwipedMealId(null), 3000);
-  };
-
-  const handleExerciseSwipe = (exerciseId: number) => {
-    setSwipedExerciseId(exerciseId);
-    setTimeout(() => setSwipedExerciseId(null), 3000);
-  };
 
   return (
     <div className="recipe-modal-overlay" onClick={onClose}>
@@ -42,32 +29,16 @@ export default function HistoryModal({
             <p className="empty-hint">暂无记录</p>
           ) : (
             <ul className="history-list">
-              {meals.map((m) => {
-                const swipeHandlers = useSwipeable({
-                  onSwipedLeft: () => handleMealSwipe(m.id),
-                  preventScrollOnSwipe: true,
-                  trackMouse: false,
-                });
-
-                return (
-                  <li
-                    key={m.id}
-                    {...swipeHandlers}
-                    className={`swipeable-item ${swipedMealId === m.id ? 'swiping' : ''}`}
-                  >
-                    <span className="meal-type">{m.meal_type}</span>
-                    <span className="food-name">{m.food_name}</span>
-                    <span className="calories">{m.calories.toFixed(0)} kcal</span>
-                    <button
-                      className="delete-btn"
-                      onClick={() => onDeleteMeal(m.id)}
-                      title="删除此记录"
-                    >
-                      ×
-                    </button>
-                  </li>
-                );
-              })}
+              {meals.map((m) => (
+                <SwipeableListItem
+                  key={m.id}
+                  onDelete={() => onDeleteMeal(m.id)}
+                >
+                  <span className="meal-type">{m.meal_type}</span>
+                  <span className="food-name">{m.food_name}</span>
+                  <span className="calories">{m.calories.toFixed(0)} kcal</span>
+                </SwipeableListItem>
+              ))}
             </ul>
           )}
           <div className="history-total">
@@ -81,31 +52,15 @@ export default function HistoryModal({
             <p className="empty-hint">暂无记录</p>
           ) : (
             <ul className="history-list">
-              {exercises.map((e) => {
-                const swipeHandlers = useSwipeable({
-                  onSwipedLeft: () => handleExerciseSwipe(e.id),
-                  preventScrollOnSwipe: true,
-                  trackMouse: false,
-                });
-
-                return (
-                  <li
-                    key={e.id}
-                    {...swipeHandlers}
-                    className={`swipeable-item ${swipedExerciseId === e.id ? 'swiping' : ''}`}
-                  >
-                    <span className="exercise-type">{e.exercise_type}</span>
-                    <span className="duration">{e.duration_min} 分钟</span>
-                    <button
-                      className="delete-btn"
-                      onClick={() => onDeleteExercise(e.id)}
-                      title="删除此记录"
-                    >
-                      ×
-                    </button>
-                  </li>
-                );
-              })}
+              {exercises.map((e) => (
+                <SwipeableListItem
+                  key={e.id}
+                  onDelete={() => onDeleteExercise(e.id)}
+                >
+                  <span className="exercise-type">{e.exercise_type}</span>
+                  <span className="duration">{e.duration_min} 分钟</span>
+                </SwipeableListItem>
+              ))}
             </ul>
           )}
         </div>

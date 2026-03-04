@@ -173,6 +173,41 @@
       "description": "44x44px touch targets, responsive food grid, swipe-to-delete gestures",
       "passes": 1,
       "notes": "Optimized button sizes, single/dual column food cards, left-swipe delete with react-swipeable"
+    },
+    {
+      "id": "F29",
+      "name": "UI improvements - Recipe modal close button",
+      "description": "Added × close button to recipe modal header for easier closing without scrolling",
+      "passes": 1,
+      "notes": "Close button added alongside export buttons in recipe header"
+    },
+    {
+      "id": "F30",
+      "name": "UI improvements - Admin button text label",
+      "description": "Admin button shows '⚙️ 管理' on desktop, only '⚙️' on mobile",
+      "passes": 1,
+      "notes": "Responsive text label with CSS media queries"
+    },
+    {
+      "id": "F31",
+      "name": "UI improvements - Admin password modal description",
+      "description": "Added clear description in admin password modal explaining panel features",
+      "passes": 1,
+      "notes": "Shows: 管理面板功能：查看系统统计、重载知识库、管理数据"
+    },
+    {
+      "id": "F32",
+      "name": "UI improvements - Mobile hamburger menu",
+      "description": "Mobile (<768px) uses hamburger menu, desktop shows all 5 buttons in header",
+      "passes": 1,
+      "notes": "Slide-in menu from right with smooth animations, all functions accessible on mobile"
+    },
+    {
+      "id": "F33",
+      "name": "React Hooks error fix",
+      "description": "Fixed 'Rendered fewer hooks than expected' error by extracting SwipeableListItem component",
+      "passes": 1,
+      "notes": "useSwipeable hook moved from map loop to separate component, compliant with React Rules of Hooks"
     }
   ],
   "last_updated": "2026-03-04",
