@@ -223,16 +223,16 @@ export default function Home() {
         {/* Desktop: Show all buttons */}
         <div className="header-actions desktop-only">
           <button className="header-btn" onClick={handleLoadHistory}>
-            📋 查看记录
+            📋 饮食记录
           </button>
           <button className="header-btn" onClick={handleLoadFoodOptions}>
-            📝 选择食物
+            📝 记录饮食
           </button>
           <button className="header-btn" onClick={() => handleLoadRecipe()}>
             🍱 食谱
           </button>
           <button className="header-btn" onClick={() => setShowChatHistory(true)}>
-            💬 历史
+            💬 对话历史
           </button>
           <AdminButton onClick={handleAdminClick} />
         </div>
@@ -257,16 +257,16 @@ export default function Home() {
             </div>
             <div className="mobile-menu-items">
               <button className="mobile-menu-item" onClick={() => { handleLoadHistory(); setShowMobileMenu(false); }}>
-                📋 查看记录
+                📋 饮食记录
               </button>
               <button className="mobile-menu-item" onClick={() => { handleLoadFoodOptions(); setShowMobileMenu(false); }}>
-                📝 选择食物
+                📝 记录饮食
               </button>
               <button className="mobile-menu-item" onClick={() => { handleLoadRecipe(); setShowMobileMenu(false); }}>
                 🍱 食谱
               </button>
               <button className="mobile-menu-item" onClick={() => { setShowChatHistory(true); setShowMobileMenu(false); }}>
-                💬 历史
+                💬 对话历史
               </button>
               <button className="mobile-menu-item" onClick={() => { handleAdminClick(); setShowMobileMenu(false); }}>
                 ⚙️ 管理

@@ -21,7 +21,7 @@ export default function HistoryModal({
   return (
     <div className="recipe-modal-overlay" onClick={onClose}>
       <div className="recipe-card history-card" onClick={(e) => e.stopPropagation()}>
-        <h2>📋 查看记录</h2>
+        <h2>📋 饮食记录</h2>
 
         <div className="history-section">
           <h3>🍽️ 饮食记录 ({meals.length} 条)</h3>
