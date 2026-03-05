@@ -158,6 +158,11 @@ export default function NutritionCalculator() {
       const data = await response.json();
       alert("✅ 个性化营养目标已应用！");
       setResult(data);
+
+      // 跳转回主页并触发刷新
+      setTimeout(() => {
+        window.location.href = "/?refresh=nutrition";
+      }, 500);  // 延迟 500ms 让用户看到提示
     } catch (error) {
       console.error("应用营养目标失败:", error);
       alert("应用失败，请重试");
@@ -168,7 +173,8 @@ export default function NutritionCalculator() {
 
   return (
     <div style={{
-      minHeight: "100vh",
+      height: "100vh",
+      overflow: "auto",
       background: "var(--bg)",
       padding: "var(--space-xl) var(--space-md)",
       position: "relative",
@@ -273,7 +279,7 @@ export default function NutritionCalculator() {
               <input
                 type="number"
                 value={profile.weight_kg}
-                onChange={(e) => setProfile({ ...profile, weight_kg: Number(e.target.value) })}
+                onChange={(e) => setProfile({ ...profile, weight_kg: Number(e.target.value) || '' as any })}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -302,7 +308,7 @@ export default function NutritionCalculator() {
               <input
                 type="number"
                 value={profile.height_cm}
-                onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) })}
+                onChange={(e) => setProfile({ ...profile, height_cm: Number(e.target.value) || '' as any })}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -331,7 +337,7 @@ export default function NutritionCalculator() {
               <input
                 type="number"
                 value={profile.age}
-                onChange={(e) => setProfile({ ...profile, age: Number(e.target.value) })}
+                onChange={(e) => setProfile({ ...profile, age: Number(e.target.value) || '' as any })}
                 style={{
                   width: "100%",
                   padding: "12px 16px",

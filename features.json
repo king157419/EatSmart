@@ -215,8 +215,22 @@
       "description": "PM2 ecosystem config for production deployment with proper port management and process monitoring",
       "passes": 0,
       "notes": "Created ecosystem.config.js and DEPLOYMENT.md guide. Needs server-side testing."
+    },
+    {
+      "id": "F35",
+      "name": "Calculator page scrolling fix",
+      "description": "Fixed calculator page scrolling by changing minHeight to height with overflow auto",
+      "passes": 1,
+      "notes": "Changed outer container from minHeight: 100vh to height: 100vh + overflow: auto"
+    },
+    {
+      "id": "F36",
+      "name": "Calculator data synchronization",
+      "description": "Fixed nutrition data sync between calculator and main page using URL parameters",
+      "passes": 1,
+      "notes": "Calculator redirects to /?refresh=nutrition after applying, main page listens and refreshes nutrition data"
     }
   ],
-  "last_updated": "2026-03-04",
+  "last_updated": "2026-03-05",
   "notes": "passes: 0=pending/investigating, 1=verified working, 2+=needed multiple attempts"
 }

@@ -63,6 +63,17 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 监听从计算器页面返回的刷新请求
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('refresh') === 'nutrition') {
+      // 刷新营养数据
+      loadNutrition();
+      // 清除 URL 参数，避免重复刷新
+      window.history.replaceState({}, '', '/');
+    }
+  }, [loadNutrition]);
+
   // Handle send message
   const handleSendMessage = async () => {
     if (!input.trim() || loading) return;
